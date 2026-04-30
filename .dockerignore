@@ -1,0 +1,8 @@
+*
+
+!order-service
+!order-service/**
+
+order-service/server
+order-service/app
+order-service/*.test

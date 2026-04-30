@@ -1,0 +1,46 @@
+name: order-service
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: order-service_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: coffee
+    ports:
+      - "5432:5432"
+    volumes:
+      - order_service_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d coffee"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - order_service_network
+
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    container_name: order-service_api
+    environment:
+      PORT: "8080"
+      DB_URL: postgres://postgres:postgres@postgres:5432/coffee?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    networks:
+      - order_service_network
+
+networks:
+  order_service_network:
+    name: order-service_network
+    driver: bridge
+
+volumes:
+  order_service_postgres_data:
+    name: order-service_postgres_data

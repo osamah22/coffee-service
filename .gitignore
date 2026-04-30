@@ -1,0 +1,8 @@
+app.db
+.env
+.codex
+.codex/
+
+order-service/server
+order-service/app
+order-service/*.test
