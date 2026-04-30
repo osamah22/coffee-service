@@ -9,9 +9,12 @@ import (
 func addRoutes(
 	router *gin.Engine,
 	authMiddleware *authn.Middleware,
+	authHandler *handlers.AuthHandler,
 	productHandler *handlers.ProductHandler,
 	orderHandler *handlers.OrderHandler,
 ) {
+	authHandler.Register(router)
+
 	protected := router.Group("/")
 	protected.Use(authMiddleware.Authenticate(), authMiddleware.RateLimit())
 

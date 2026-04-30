@@ -8,6 +8,7 @@ import (
 type Role string
 
 const (
+	RoleGuest Role = "guest"
 	RoleUser  Role = "user"
 	RoleAdmin Role = "admin"
 )

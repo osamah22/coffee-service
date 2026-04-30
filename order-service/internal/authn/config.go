@@ -12,10 +12,12 @@ type Config struct {
 	Issuer              string
 	Audience            string
 	JWKSURL             string
+	TokenSecret         string
 	RoleClaim           string
 	DefaultRole         Role
 	AdminRoles          map[string]struct{}
 	UserRoles           map[string]struct{}
+	GuestLimitPerSecond int
 	UserLimitPerSecond  int
 	AdminLimitPerSecond int
 }
@@ -26,10 +28,12 @@ func ConfigFromEnv() Config {
 		Issuer:              strings.TrimRight(os.Getenv("AUTH_ISSUER"), "/"),
 		Audience:            os.Getenv("AUTH_AUDIENCE"),
 		JWKSURL:             os.Getenv("AUTH_JWKS_URL"),
+		TokenSecret:         os.Getenv("AUTH_JWT_SECRET"),
 		RoleClaim:           envOrDefault("AUTH_ROLE_CLAIM", "groups"),
 		DefaultRole:         RoleUser,
 		AdminRoles:          roleSet(envOrDefault("AUTH_ADMIN_ROLES", "admin,admins,order-service-admin")),
 		UserRoles:           roleSet(envOrDefault("AUTH_USER_ROLES", "user,users,order-service-user")),
+		GuestLimitPerSecond: envInt("AUTH_GUEST_RPS", 10),
 		UserLimitPerSecond:  envInt("AUTH_USER_RPS", 10),
 		AdminLimitPerSecond: envInt("AUTH_ADMIN_RPS", 1000),
 	}
@@ -45,11 +49,14 @@ func (c Config) Validate() error {
 	if c.Audience == "" {
 		return ErrMissingAudience
 	}
-	if c.JWKSURL == "" {
+	if c.JWKSURL == "" && c.TokenSecret == "" {
 		return ErrMissingJWKSURL
 	}
 	if c.UserLimitPerSecond < 1 {
 		c.UserLimitPerSecond = 1
+	}
+	if c.GuestLimitPerSecond < 1 {
+		c.GuestLimitPerSecond = 1
 	}
 	if c.AdminLimitPerSecond < 1 {
 		c.AdminLimitPerSecond = 1

@@ -39,7 +39,8 @@ func (m *Middleware) Authenticate() gin.HandlerFunc {
 
 		header := c.GetHeader("Authorization")
 		if !strings.HasPrefix(header, "Bearer ") {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing bearer token"})
+			c.Set(claimsContextKey, guestClaims(c.ClientIP()))
+			c.Next()
 			return
 		}
 
@@ -98,6 +99,7 @@ func CurrentClaims(c *gin.Context) (Claims, bool) {
 }
 
 type roleLimiter struct {
+	guestLimit int
 	userLimit  int
 	adminLimit int
 	mu         sync.Mutex
@@ -111,6 +113,7 @@ type bucket struct {
 
 func newRoleLimiter(cfg Config) *roleLimiter {
 	return &roleLimiter{
+		guestLimit: max(1, cfg.GuestLimitPerSecond),
 		userLimit:  max(1, cfg.UserLimitPerSecond),
 		adminLimit: max(1, cfg.AdminLimitPerSecond),
 		buckets:    map[string]*bucket{},
@@ -119,7 +122,10 @@ func newRoleLimiter(cfg Config) *roleLimiter {
 
 func (l *roleLimiter) Allow(claims Claims) bool {
 	limit := l.userLimit
-	if claims.Role == RoleAdmin {
+	switch claims.Role {
+	case RoleGuest:
+		limit = l.guestLimit
+	case RoleAdmin:
 		limit = l.adminLimit
 	}
 
@@ -140,4 +146,15 @@ func (l *roleLimiter) Allow(claims Claims) bool {
 	}
 	b.count++
 	return true
+}
+
+func guestClaims(ip string) Claims {
+	if ip == "" {
+		ip = "unknown"
+	}
+	return Claims{
+		Subject: "guest:" + ip,
+		Role:    RoleGuest,
+		Roles:   []string{string(RoleGuest)},
+	}
 }

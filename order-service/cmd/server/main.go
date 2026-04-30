@@ -31,10 +31,15 @@ func main() {
 	if err != nil {
 		log.Fatal("auth middleware setup failed:", err)
 	}
+	tokenIssuer, err := authn.NewTokenIssuer(authn.ConfigFromEnv())
+	if err != nil {
+		log.Fatal("auth token issuer setup failed:", err)
+	}
 
 	addRoutes(
 		router,
 		authMiddleware,
+		handlers.NewAuthHandler(services.NewAuthService(db, tokenIssuer)),
 		handlers.NewProductHandler(services.NewProductService(db)),
 		handlers.NewOrderHandler(services.NewOrderService(db), services.NewProductService(db)),
 	)
@@ -54,12 +59,15 @@ func setupDatabase() *gorm.DB {
 		log.Fatal("failed to connect database:", err)
 	}
 
-	if err := db.AutoMigrate(&models.Product{}, &models.Order{}, &models.LineItem{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.Product{}, &models.Order{}, &models.LineItem{}); err != nil {
 		log.Fatal("auto migration failed:", err)
 	}
 
 	if err := seed.CoffeeMenu(context.Background(), db); err != nil {
 		log.Fatal("product seeding failed:", err)
+	}
+	if err := seed.AdminUser(context.Background(), db); err != nil {
+		log.Fatal("admin seeding failed:", err)
 	}
 
 	return db

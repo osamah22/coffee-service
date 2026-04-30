@@ -120,7 +120,7 @@ h1 {
 
 .product-card {
   display: grid;
-  grid-template-rows: 150px 1fr;
+  grid-template-rows: 178px 1fr;
   min-height: 300px;
   border: 2px solid var(--line);
   background: var(--panel-2);
@@ -132,12 +132,352 @@ h1 {
   padding: 12px;
   border-bottom: 2px solid var(--line);
   background:
+    linear-gradient(90deg, color-mix(in srgb, var(--line) 36%, transparent) 1px, transparent 1px) 0 0 / 14px 14px,
+    linear-gradient(color-mix(in srgb, var(--line) 24%, transparent) 1px, transparent 1px) 0 0 / 14px 14px,
     linear-gradient(135deg, transparent 45%, color-mix(in srgb, var(--accent) 22%, transparent) 45% 55%, transparent 55%),
     var(--panel);
-  color: var(--muted);
-  text-align: center;
-  overflow-wrap: anywhere;
-  font-size: 0.78rem;
+}
+
+.pixel-coffee {
+  position: relative;
+  width: 118px;
+  height: 126px;
+  image-rendering: pixelated;
+  --cup: #f2e7c9;
+  --cup-shadow: #c9aa76;
+  --drink: #3b2116;
+  --foam: #fff0cf;
+  --accent-pixel: #60f0b8;
+  --stripe: #8a4a24;
+}
+
+.pixel-coffee span {
+  position: absolute;
+  display: block;
+}
+
+.pixel-vessel {
+  left: 24px;
+  bottom: 22px;
+  width: 70px;
+  height: 72px;
+  border: 6px solid var(--line);
+  background:
+    linear-gradient(var(--foam), var(--foam)) 8px 8px / 42px 10px no-repeat,
+    linear-gradient(var(--drink), var(--drink)) 8px 18px / 42px 36px no-repeat,
+    linear-gradient(90deg, var(--cup-shadow) 0 12px, var(--cup) 12px);
+  box-shadow: 8px 8px 0 var(--shadow);
+}
+
+.pixel-handle {
+  right: -26px;
+  top: 18px;
+  width: 26px;
+  height: 30px;
+  border: 6px solid var(--line);
+  border-left: 0;
+  background: transparent;
+}
+
+.pixel-saucer {
+  left: 16px;
+  bottom: 8px;
+  width: 88px;
+  height: 12px;
+  border: 4px solid var(--line);
+  background: var(--cup-shadow);
+}
+
+.pixel-steam {
+  top: 2px;
+  width: 10px;
+  height: 34px;
+  background:
+    linear-gradient(var(--accent-pixel), var(--accent-pixel)) 0 0 / 10px 10px no-repeat,
+    linear-gradient(var(--accent-pixel), var(--accent-pixel)) 10px 10px / 10px 10px no-repeat,
+    linear-gradient(var(--accent-pixel), var(--accent-pixel)) 0 20px / 10px 10px no-repeat;
+  opacity: 0.88;
+}
+
+.pixel-steam-a {
+  left: 42px;
+}
+
+.pixel-steam-b {
+  left: 66px;
+  top: 10px;
+}
+
+.pixel-liquid,
+.pixel-foam,
+.pixel-syrup,
+.pixel-ice {
+  pointer-events: none;
+}
+
+.pixel-liquid {
+  left: 14px;
+  top: 24px;
+  width: 34px;
+  height: 24px;
+  background: color-mix(in srgb, var(--drink) 70%, transparent);
+}
+
+.pixel-foam {
+  left: 12px;
+  top: 8px;
+  width: 38px;
+  height: 12px;
+  background: var(--foam);
+}
+
+.pixel-syrup {
+  left: 16px;
+  top: 10px;
+  width: 8px;
+  height: 46px;
+  background: var(--stripe);
+  box-shadow: 18px 0 0 var(--stripe);
+  opacity: 0;
+}
+
+.pixel-ice {
+  width: 14px;
+  height: 14px;
+  border: 3px solid #d8fff4;
+  background: #88d4e8;
+  opacity: 0;
+}
+
+.pixel-ice-a {
+  left: 12px;
+  top: 22px;
+}
+
+.pixel-ice-b {
+  left: 34px;
+  top: 36px;
+}
+
+.pixel-espresso {
+  --drink: #1e0f0a;
+  --foam: #6f3d1f;
+}
+
+.pixel-espresso .pixel-vessel {
+  left: 32px;
+  bottom: 24px;
+  width: 54px;
+  height: 52px;
+}
+
+.pixel-espresso .pixel-saucer {
+  left: 24px;
+  width: 72px;
+}
+
+.pixel-caffe-americano {
+  --drink: #2a160e;
+  --foam: #3e2418;
+  --cup: #f0d7a2;
+}
+
+.pixel-caffe-latte,
+.pixel-iced-latte {
+  --drink: #c48958;
+  --foam: #fff3d4;
+  --cup: #f7e6bb;
+}
+
+.pixel-cappuccino {
+  --drink: #8f5c36;
+  --foam: #fff0cf;
+  --accent-pixel: #ffb85a;
+}
+
+.pixel-cappuccino .pixel-foam {
+  box-shadow: 12px 8px 0 #f5dcb3, 26px 4px 0 #fff7dc;
+}
+
+.pixel-flat-white {
+  --drink: #9b6942;
+  --foam: #fff5df;
+}
+
+.pixel-flat-white .pixel-foam {
+  box-shadow: 14px 0 0 #d9b884, 22px 0 0 #fff5df;
+}
+
+.pixel-caramel-macchiato,
+.pixel-iced-caramel-macchiato {
+  --drink: #d8a068;
+  --foam: #fff0cf;
+  --stripe: #b15b20;
+}
+
+.pixel-caramel-macchiato .pixel-syrup,
+.pixel-iced-caramel-macchiato .pixel-syrup {
+  opacity: 1;
+}
+
+.pixel-caffe-mocha {
+  --drink: #4b2518;
+  --foam: #f0d6b2;
+  --stripe: #2a120b;
+}
+
+.pixel-caffe-mocha .pixel-syrup {
+  opacity: 1;
+}
+
+.pixel-cold-brew,
+.pixel-iced-latte,
+.pixel-iced-caramel-macchiato {
+  --cup: #bcefff;
+  --cup-shadow: #6fb5c7;
+  --drink: #392116;
+  --foam: #d8fff4;
+  --accent-pixel: #88d4e8;
+}
+
+.pixel-cold-brew .pixel-vessel,
+.pixel-iced-latte .pixel-vessel,
+.pixel-iced-caramel-macchiato .pixel-vessel {
+  border-top-width: 4px;
+  background:
+    linear-gradient(var(--foam), var(--foam)) 10px 8px / 38px 8px no-repeat,
+    linear-gradient(var(--drink), var(--drink)) 10px 18px / 38px 42px no-repeat,
+    linear-gradient(90deg, color-mix(in srgb, var(--cup-shadow) 54%, transparent) 0 14px, color-mix(in srgb, var(--cup) 62%, transparent) 14px);
+}
+
+.pixel-cold-brew .pixel-handle,
+.pixel-iced-latte .pixel-handle,
+.pixel-iced-caramel-macchiato .pixel-handle,
+.pixel-cold-brew .pixel-saucer,
+.pixel-iced-latte .pixel-saucer,
+.pixel-iced-caramel-macchiato .pixel-saucer,
+.pixel-cold-brew .pixel-steam,
+.pixel-iced-latte .pixel-steam,
+.pixel-iced-caramel-macchiato .pixel-steam {
+  display: none;
+}
+
+.pixel-cold-brew .pixel-ice,
+.pixel-iced-latte .pixel-ice,
+.pixel-iced-caramel-macchiato .pixel-ice {
+  opacity: 0.95;
+}
+
+.pixel-iced-latte {
+  --drink: #ba875d;
+}
+
+.pixel-iced-caramel-macchiato {
+  --drink: #c89564;
+}
+
+.guest-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  border: 2px solid var(--line);
+  background: var(--panel-2);
+  padding: 12px;
+}
+
+.guest-panel span {
+  color: var(--accent-2);
+  font-weight: 700;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.auth-tabs .active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.auth-panel {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(280px, 1fr);
+  gap: 22px;
+  margin: 18px 0;
+  border: 2px solid var(--line);
+  background: var(--panel-2);
+  padding: 20px;
+  overflow: hidden;
+}
+
+.auth-copy,
+.auth-form,
+.auth-close,
+.text-button {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  min-height: 34px;
+}
+
+.auth-copy {
+  display: grid;
+  align-content: center;
+  gap: 12px;
+}
+
+.auth-copy h2 {
+  color: var(--accent);
+  font-size: clamp(2rem, 5vw, 4.5rem);
+  line-height: 0.92;
+  text-transform: uppercase;
+}
+
+.auth-form {
+  display: grid;
+  gap: 12px;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--accent-2);
+  font-weight: 700;
+}
+
+.auth-form input {
+  min-height: 42px;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  padding: 8px 10px;
+  outline: none;
+}
+
+.auth-form input:focus {
+  border-color: var(--accent);
+}
+
+.auth-error {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.text-button {
+  justify-self: start;
+  width: fit-content;
+  background: transparent;
+  box-shadow: none;
 }
 
 .product-info {
@@ -183,5 +523,10 @@ h1 {
 
   .status-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .auth-panel {
+    grid-template-columns: 1fr;
+    padding-top: 58px;
   }
 }

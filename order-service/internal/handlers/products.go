@@ -21,8 +21,8 @@ func NewProductHandler(svc *services.ProductService) *ProductHandler {
 
 func (h *ProductHandler) Register(router gin.IRouter, authMiddleware *authn.Middleware) {
 	products := router.Group("/products")
-	products.GET("", authMiddleware.RequireRole(authn.RoleUser, authn.RoleAdmin), h.list)
-	products.GET("/:id", authMiddleware.RequireRole(authn.RoleUser, authn.RoleAdmin), h.get)
+	products.GET("", authMiddleware.RequireRole(authn.RoleGuest, authn.RoleUser, authn.RoleAdmin), h.list)
+	products.GET("/:id", authMiddleware.RequireRole(authn.RoleGuest, authn.RoleUser, authn.RoleAdmin), h.get)
 	products.POST("", authMiddleware.RequireRole(authn.RoleAdmin), h.create)
 	products.PUT("/:id", authMiddleware.RequireRole(authn.RoleAdmin), h.update)
 	products.DELETE("/:id", authMiddleware.RequireRole(authn.RoleAdmin), h.delete)

@@ -1,0 +1,34 @@
+http:
+  routers:
+    frontend:
+      entryPoints:
+        - web
+      rule: "Host(`localhost`) && PathPrefix(`/`)"
+      priority: 1
+      service: frontend
+
+    order-service:
+      entryPoints:
+        - web
+      rule: "Host(`localhost`) && PathPrefix(`/api`)"
+      priority: 100
+      middlewares:
+        - api-strip
+      service: order-service
+
+  middlewares:
+    api-strip:
+      stripPrefix:
+        prefixes:
+          - /api
+
+  services:
+    frontend:
+      loadBalancer:
+        servers:
+          - url: "http://frontend:80"
+
+    order-service:
+      loadBalancer:
+        servers:
+          - url: "http://order-service:8080"

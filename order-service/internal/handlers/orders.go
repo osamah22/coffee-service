@@ -25,7 +25,7 @@ func (h *OrderHandler) Register(router gin.IRouter, authMiddleware *authn.Middle
 	orders := router.Group("/orders")
 	orders.GET("", authMiddleware.RequireRole(authn.RoleAdmin), h.list)
 	orders.GET("/:id", authMiddleware.RequireRole(authn.RoleAdmin), h.get)
-	orders.POST("", authMiddleware.RequireRole(authn.RoleUser, authn.RoleAdmin), h.create)
+	orders.POST("", authMiddleware.RequireRole(authn.RoleGuest, authn.RoleUser, authn.RoleAdmin), h.create)
 	orders.POST("/:id/complete", authMiddleware.RequireRole(authn.RoleAdmin), h.complete)
 	orders.POST("/:id/cancel", authMiddleware.RequireRole(authn.RoleAdmin), h.cancel)
 	orders.DELETE("/:id", authMiddleware.RequireRole(authn.RoleAdmin), h.delete)

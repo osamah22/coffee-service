@@ -3,6 +3,7 @@ package authn
 import (
 	"context"
 	"crypto"
+	"crypto/hmac"
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
@@ -25,6 +26,9 @@ func NewVerifier(cfg Config) (*Verifier, error) {
 	if !cfg.Enabled {
 		return &Verifier{cfg: cfg}, nil
 	}
+	if cfg.JWKSURL == "" {
+		return &Verifier{cfg: cfg}, nil
+	}
 	return &Verifier{
 		cfg:  cfg,
 		keys: newKeySet(cfg.JWKSURL),
@@ -41,19 +45,7 @@ func (v *Verifier) Verify(ctx context.Context, token string) (Claims, error) {
 		return Claims{}, err
 	}
 
-	if alg, _ := header["alg"].(string); alg != "RS256" {
-		return Claims{}, errors.New("unsupported token algorithm")
-	}
-	kid, _ := header["kid"].(string)
-	if kid == "" {
-		return Claims{}, errors.New("token is missing kid")
-	}
-
-	key, err := v.keys.key(ctx, kid)
-	if err != nil {
-		return Claims{}, err
-	}
-	if err := verifyRS256(key, signingInput, signature); err != nil {
+	if err := v.verifySignature(ctx, header, signingInput, signature); err != nil {
 		return Claims{}, err
 	}
 	if err := v.validatePayload(payload); err != nil {
@@ -65,6 +57,31 @@ func (v *Verifier) Verify(ctx context.Context, token string) (Claims, error) {
 		return Claims{}, errors.New("token subject is missing")
 	}
 	return claims, nil
+}
+
+func (v *Verifier) verifySignature(ctx context.Context, header map[string]any, signingInput string, signature []byte) error {
+	switch alg, _ := header["alg"].(string); alg {
+	case "HS256":
+		if v.cfg.TokenSecret == "" {
+			return errors.New("local token secret is not configured")
+		}
+		return verifyHS256(v.cfg.TokenSecret, signingInput, signature)
+	case "RS256":
+		if v.keys == nil {
+			return errors.New("jwks is not configured")
+		}
+		kid, _ := header["kid"].(string)
+		if kid == "" {
+			return errors.New("token is missing kid")
+		}
+		key, err := v.keys.key(ctx, kid)
+		if err != nil {
+			return err
+		}
+		return verifyRS256(key, signingInput, signature)
+	default:
+		return errors.New("unsupported token algorithm")
+	}
 }
 
 func splitToken(token string) (map[string]any, map[string]any, string, []byte, error) {
@@ -101,6 +118,15 @@ func splitToken(token string) (map[string]any, map[string]any, string, []byte, e
 func verifyRS256(key *rsa.PublicKey, signingInput string, signature []byte) error {
 	hash := sha256.Sum256([]byte(signingInput))
 	return rsa.VerifyPKCS1v15(key, crypto.SHA256, hash[:], signature)
+}
+
+func verifyHS256(secret string, signingInput string, signature []byte) error {
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(signingInput))
+	if !hmac.Equal(mac.Sum(nil), signature) {
+		return errors.New("invalid token signature")
+	}
+	return nil
 }
 
 func (v *Verifier) validatePayload(payload map[string]any) error {
