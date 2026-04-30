@@ -40,6 +40,7 @@ func TestProductServiceAddProduct(t *testing.T) {
 		Name:         "Latte",
 		Category:     models.Hot,
 		PriceInKurus: 7500,
+		ImagePath:    "/images/products/latte.jpg",
 		Available:    true,
 	}
 
@@ -61,6 +62,7 @@ func TestProductServiceListAll(t *testing.T) {
 		Name:         "Latte",
 		Category:     models.Hot,
 		PriceInKurus: 7500,
+		ImagePath:    "/images/products/latte.jpg",
 		Available:    true,
 	})
 
@@ -68,6 +70,7 @@ func TestProductServiceListAll(t *testing.T) {
 		Name:         "Iced Americano",
 		Category:     models.Cold,
 		PriceInKurus: 6500,
+		ImagePath:    "/images/products/iced-americano.jpg",
 		Available:    true,
 	})
 
@@ -89,6 +92,7 @@ func TestProductServiceFind(t *testing.T) {
 		Name:         "Cappuccino",
 		Category:     models.Hot,
 		PriceInKurus: 8000,
+		ImagePath:    "/images/products/cappuccino.jpg",
 		Available:    true,
 	})
 	if err != nil {
@@ -127,6 +131,7 @@ func TestProductServiceUpdateProduct(t *testing.T) {
 		Name:         "Mocha",
 		Category:     models.Hot,
 		PriceInKurus: 9000,
+		ImagePath:    "/images/products/mocha.jpg",
 		Available:    true,
 	})
 	if err != nil {
@@ -136,6 +141,7 @@ func TestProductServiceUpdateProduct(t *testing.T) {
 	created.Name = "Updated Mocha"
 	created.Available = false
 	created.PriceInKurus = 9500
+	created.ImagePath = "/images/products/updated-mocha.jpg"
 
 	updated, err := svc.UpdateProduct(context.Background(), created)
 	if err != nil {
@@ -158,6 +164,10 @@ func TestProductServiceUpdateProduct(t *testing.T) {
 	if found.PriceInKurus != 9500 {
 		t.Fatalf("expected price 9500, got %d", found.PriceInKurus)
 	}
+
+	if found.ImagePath != "/images/products/updated-mocha.jpg" {
+		t.Fatalf("expected updated image path, got %q", found.ImagePath)
+	}
 }
 
 func TestProductServiceUpdateProductNotFound(t *testing.T) {
@@ -169,6 +179,7 @@ func TestProductServiceUpdateProductNotFound(t *testing.T) {
 		Name:         "Ghost Coffee",
 		Category:     models.Hot,
 		PriceInKurus: 5000,
+		ImagePath:    "/images/products/ghost-coffee.jpg",
 		Available:    true,
 	}
 
@@ -190,6 +201,7 @@ func TestProductServiceDeleteProduct(t *testing.T) {
 		Name:         "Espresso",
 		Category:     models.Hot,
 		PriceInKurus: 4000,
+		ImagePath:    "/images/products/espresso.jpg",
 		Available:    true,
 	})
 	if err != nil {

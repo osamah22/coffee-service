@@ -1,14 +1,17 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/osamah22/coffee-service/order-service/internal/authn"
 	"github.com/osamah22/coffee-service/order-service/internal/handlers"
 	"github.com/osamah22/coffee-service/order-service/internal/models"
+	"github.com/osamah22/coffee-service/order-service/internal/seed"
 	"github.com/osamah22/coffee-service/order-service/internal/services"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -24,8 +27,14 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
 	})
 
+	authMiddleware, err := authn.NewMiddleware(authn.ConfigFromEnv())
+	if err != nil {
+		log.Fatal("auth middleware setup failed:", err)
+	}
+
 	addRoutes(
 		router,
+		authMiddleware,
 		handlers.NewProductHandler(services.NewProductService(db)),
 		handlers.NewOrderHandler(services.NewOrderService(db), services.NewProductService(db)),
 	)
@@ -47,6 +56,10 @@ func setupDatabase() *gorm.DB {
 
 	if err := db.AutoMigrate(&models.Product{}, &models.Order{}, &models.LineItem{}); err != nil {
 		log.Fatal("auto migration failed:", err)
+	}
+
+	if err := seed.CoffeeMenu(context.Background(), db); err != nil {
+		log.Fatal("product seeding failed:", err)
 	}
 
 	return db

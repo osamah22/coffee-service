@@ -1,0 +1,187 @@
+.terminal-screen,
+.console-shell {
+  width: min(1180px, calc(100% - 28px));
+  min-height: calc(100svh - 28px);
+  margin: 14px auto;
+  border: 2px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  box-shadow: 10px 10px 0 var(--shadow);
+}
+
+.terminal-screen {
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.console-shell {
+  padding: 22px;
+}
+
+.topbar {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 2px solid var(--line);
+  padding-bottom: 20px;
+}
+
+.eyebrow {
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+h1 {
+  margin-top: 8px;
+  color: var(--ink);
+  font-size: clamp(2.1rem, 7vw, 5.5rem);
+  line-height: 0.9;
+  text-transform: uppercase;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 10px;
+}
+
+.icon-button {
+  min-width: 74px;
+}
+
+.status-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+  margin: 18px 0;
+  border: 2px solid var(--line);
+  background: var(--line);
+}
+
+.status-strip span {
+  min-height: 42px;
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  background: var(--panel-2);
+  color: var(--accent-2);
+  font-weight: 700;
+  text-align: center;
+}
+
+.login-panel {
+  position: relative;
+  min-height: 420px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 18px;
+  overflow: hidden;
+  border: 2px solid var(--line);
+  background: var(--panel-2);
+  text-align: center;
+  padding: 28px;
+}
+
+.login-panel h2 {
+  color: var(--danger);
+  font-size: clamp(2rem, 8vw, 5rem);
+}
+
+.login-panel p {
+  max-width: 580px;
+  color: var(--muted);
+}
+
+.screen-lines {
+  position: absolute;
+  inset: 0;
+  opacity: 0.18;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 10px,
+    var(--accent) 11px,
+    transparent 12px
+  );
+  pointer-events: none;
+}
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.product-card {
+  display: grid;
+  grid-template-rows: 150px 1fr;
+  min-height: 300px;
+  border: 2px solid var(--line);
+  background: var(--panel-2);
+}
+
+.product-image {
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  border-bottom: 2px solid var(--line);
+  background:
+    linear-gradient(135deg, transparent 45%, color-mix(in srgb, var(--accent) 22%, transparent) 45% 55%, transparent 55%),
+    var(--panel);
+  color: var(--muted);
+  text-align: center;
+  overflow-wrap: anywhere;
+  font-size: 0.78rem;
+}
+
+.product-info {
+  display: grid;
+  align-content: space-between;
+  gap: 12px;
+  padding: 16px;
+}
+
+.product-info h2 {
+  color: var(--ink);
+  font-size: 1.35rem;
+  line-height: 1.05;
+}
+
+.product-info p:last-child {
+  color: var(--accent);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.chip {
+  width: fit-content;
+  border: 2px solid var(--line);
+  color: var(--accent-2);
+  padding: 4px 8px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .console-shell {
+    padding: 14px;
+  }
+
+  .topbar {
+    display: grid;
+  }
+
+  .toolbar {
+    justify-content: start;
+  }
+
+  .status-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

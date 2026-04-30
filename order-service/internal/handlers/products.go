@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/osamah22/coffee-service/order-service/internal/authn"
 	"github.com/osamah22/coffee-service/order-service/internal/dtos"
 	"github.com/osamah22/coffee-service/order-service/internal/models"
 	"github.com/osamah22/coffee-service/order-service/internal/services"
@@ -18,13 +19,13 @@ func NewProductHandler(svc *services.ProductService) *ProductHandler {
 	return &ProductHandler{svc: svc}
 }
 
-func (h *ProductHandler) Register(router gin.IRouter) {
+func (h *ProductHandler) Register(router gin.IRouter, authMiddleware *authn.Middleware) {
 	products := router.Group("/products")
-	products.GET("", h.list)
-	products.GET("/:id", h.get)
-	products.POST("", h.create)
-	products.PUT("/:id", h.update)
-	products.DELETE("/:id", h.delete)
+	products.GET("", authMiddleware.RequireRole(authn.RoleUser, authn.RoleAdmin), h.list)
+	products.GET("/:id", authMiddleware.RequireRole(authn.RoleUser, authn.RoleAdmin), h.get)
+	products.POST("", authMiddleware.RequireRole(authn.RoleAdmin), h.create)
+	products.PUT("/:id", authMiddleware.RequireRole(authn.RoleAdmin), h.update)
+	products.DELETE("/:id", authMiddleware.RequireRole(authn.RoleAdmin), h.delete)
 }
 
 func (h *ProductHandler) list(c *gin.Context) {
@@ -65,6 +66,7 @@ func (h *ProductHandler) create(c *gin.Context) {
 		Name:         req.Name,
 		Category:     models.Category(req.Category),
 		PriceInKurus: req.PriceInKurus,
+		ImagePath:    req.ImagePath,
 		Available:    available,
 	}
 
@@ -99,6 +101,7 @@ func (h *ProductHandler) update(c *gin.Context) {
 		Name:         req.Name,
 		Category:     models.Category(req.Category),
 		PriceInKurus: req.PriceInKurus,
+		ImagePath:    req.ImagePath,
 		Available:    available,
 	}
 

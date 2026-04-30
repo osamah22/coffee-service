@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -19,6 +20,7 @@ type Product struct {
 	Name         string    `gorm:"not null" json:"name"`
 	Category     Category  `gorm:"type:varchar(10);not null" json:"category"`
 	PriceInKurus int64     `gorm:"not null" json:"price_in_kurus"` // 2550 = TL 25.50
+	ImagePath    string    `json:"image_path"`
 	Available    bool      `gorm:"default:true" json:"available"`
 }
 
@@ -33,8 +35,12 @@ func (p *Product) BeforeCreate(tx *gorm.DB) error {
 
 // ValidateProduct ensure that product is in valid state
 func ValidateProduct(p *Product) error {
-	if p.Name == "" {
+	if strings.TrimSpace(p.Name) == "" {
 		return errors.New("name is required")
+	}
+
+	if strings.TrimSpace(p.ImagePath) == "" {
+		return errors.New("image path is required")
 	}
 
 	if p.PriceInKurus < 0 {

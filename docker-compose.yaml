@@ -20,6 +20,70 @@ services:
     networks:
       - order_service_network
 
+  authentik-postgres:
+    image: postgres:16
+    container_name: order-service_authentik_postgres
+    environment:
+      POSTGRES_USER: authentik
+      POSTGRES_PASSWORD: authentik-dev-password
+      POSTGRES_DB: authentik
+    volumes:
+      - authentik_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authentik -d authentik"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - order_service_network
+
+  authentik-server:
+    image: ghcr.io/goauthentik/server:2025.10
+    container_name: order-service_authentik_server
+    command: server
+    environment:
+      AUTHENTIK_SECRET_KEY: order-service-dev-secret-change-me
+      AUTHENTIK_BOOTSTRAP_EMAIL: admin@example.com
+      AUTHENTIK_BOOTSTRAP_PASSWORD: admin
+      AUTHENTIK_BOOTSTRAP_TOKEN: dev-bootstrap-token
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgres
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: authentik-dev-password
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+    volumes:
+      - authentik_media:/media
+      - authentik_templates:/templates
+    depends_on:
+      authentik-postgres:
+        condition: service_healthy
+    ports:
+      - "9000:9000"
+      - "9443:9443"
+    networks:
+      - order_service_network
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:2025.10
+    container_name: order-service_authentik_worker
+    command: worker
+    environment:
+      AUTHENTIK_SECRET_KEY: order-service-dev-secret-change-me
+      AUTHENTIK_BOOTSTRAP_EMAIL: admin@example.com
+      AUTHENTIK_BOOTSTRAP_PASSWORD: admin
+      AUTHENTIK_BOOTSTRAP_TOKEN: dev-bootstrap-token
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgres
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: authentik-dev-password
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+    volumes:
+      - authentik_media:/media
+      - authentik_templates:/templates
+    depends_on:
+      authentik-postgres:
+        condition: service_healthy
+    networks:
+      - order_service_network
+
   order-service:
     build:
       context: .
@@ -28,9 +92,20 @@ services:
     environment:
       PORT: "8080"
       DB_URL: postgres://postgres:postgres@postgres:5432/coffee?sslmode=disable
+      AUTH_ENABLED: "true"
+      AUTH_ISSUER: http://localhost:9000/application/o/order-service/
+      AUTH_AUDIENCE: order-service
+      AUTH_JWKS_URL: http://authentik-server:9000/application/o/order-service/jwks/
+      AUTH_ROLE_CLAIM: groups
+      AUTH_ADMIN_ROLES: admin,admins,order-service-admin
+      AUTH_USER_ROLES: user,users,order-service-user
+      AUTH_ADMIN_RPS: "1000"
+      AUTH_USER_RPS: "10"
     depends_on:
       postgres:
         condition: service_healthy
+      authentik-server:
+        condition: service_started
     ports:
       - "8080:8080"
     networks:
@@ -44,3 +119,9 @@ networks:
 volumes:
   order_service_postgres_data:
     name: order-service_postgres_data
+  authentik_postgres_data:
+    name: order-service_authentik_postgres_data
+  authentik_media:
+    name: order-service_authentik_media
+  authentik_templates:
+    name: order-service_authentik_templates

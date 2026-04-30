@@ -1,0 +1,85 @@
+:root {
+  color-scheme: light dark;
+  font-family: "Courier New", ui-monospace, monospace;
+  font-size: 16px;
+  letter-spacing: 0;
+  background: var(--page-bg);
+  color: var(--ink);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root,
+:root[data-theme="dark"] {
+  --page-bg: #15120f;
+  --panel: #241d18;
+  --panel-2: #31271f;
+  --ink: #f2e7c9;
+  --muted: #b7a783;
+  --line: #6c553b;
+  --accent: #60f0b8;
+  --accent-2: #ffb85a;
+  --danger: #ff6b6b;
+  --shadow: rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme="light"] {
+  --page-bg: #eadcbf;
+  --panel: #fff2d0;
+  --panel-2: #f3dfb3;
+  --ink: #2a1f16;
+  --muted: #6b5638;
+  --line: #9d7a4a;
+  --accent: #006d5b;
+  --accent-2: #9a3f00;
+  --danger: #a82020;
+  --shadow: rgba(87, 54, 22, 0.22);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100svh;
+  margin: 0;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.035) 50%, transparent 50%) 0 0 / 100% 4px,
+    radial-gradient(circle at 20% 10%, rgba(96, 240, 184, 0.11), transparent 28rem),
+    var(--page-bg);
+}
+
+button {
+  min-height: 42px;
+  border: 2px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  padding: 0 14px;
+  box-shadow: 4px 4px 0 var(--shadow);
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+button:focus-visible {
+  outline: 3px solid var(--accent-2);
+  outline-offset: 3px;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+#root {
+  min-height: 100svh;
+}

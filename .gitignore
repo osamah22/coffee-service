@@ -6,3 +6,6 @@ app.db
 order-service/server
 order-service/app
 order-service/*.test
+
+frontend/node_modules/
+frontend/dist/
