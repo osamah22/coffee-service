@@ -7,36 +7,44 @@ import (
 )
 
 type Config struct {
-	ConnectionURI       string
-	AppName             string
-	APIDomain           string
-	WebsiteDomain       string
-	APIBasePath         string
-	WebsiteBasePath     string
-	AdminEmails         map[string]struct{}
-	GuestLimitPerSecond int
-	UserLimitPerSecond  int
-	AdminLimitPerSecond int
+	ConnectionURI         string
+	AppName               string
+	APIDomain             string
+	WebsiteDomain         string
+	APIBasePath           string
+	WebsiteBasePath       string
+	AdminEmails           map[string]struct{}
+	BaristaEmails         map[string]struct{}
+	GuestLimitPerSecond   int
+	UserLimitPerSecond    int
+	BaristaLimitPerSecond int
+	AdminLimitPerSecond   int
 }
 
 func ConfigFromEnv() Config {
 	return Config{
-		ConnectionURI:       envOrDefault("SUPERTOKENS_CONNECTION_URI", "http://localhost:3567"),
-		AppName:             envOrDefault("SUPERTOKENS_APP_NAME", "Coffee Service"),
-		APIDomain:           strings.TrimRight(envOrDefault("SUPERTOKENS_API_DOMAIN", "http://localhost:8080"), "/"),
-		WebsiteDomain:       strings.TrimRight(envOrDefault("SUPERTOKENS_WEBSITE_DOMAIN", "http://localhost:5173"), "/"),
-		APIBasePath:         envOrDefault("SUPERTOKENS_API_BASE_PATH", "/auth"),
-		WebsiteBasePath:     envOrDefault("SUPERTOKENS_WEBSITE_BASE_PATH", "/auth"),
-		AdminEmails:         emailSet(envOrDefault("SUPERTOKENS_ADMIN_EMAILS", "admin@example.com")),
-		GuestLimitPerSecond: envInt("AUTH_GUEST_RPS", 10),
-		UserLimitPerSecond:  envInt("AUTH_USER_RPS", 10),
-		AdminLimitPerSecond: envInt("AUTH_ADMIN_RPS", 1000),
+		ConnectionURI:         envOrDefault("SUPERTOKENS_CONNECTION_URI", "http://localhost:3567"),
+		AppName:               envOrDefault("SUPERTOKENS_APP_NAME", "Coffee Service"),
+		APIDomain:             strings.TrimRight(envOrDefault("SUPERTOKENS_API_DOMAIN", "http://localhost:8080"), "/"),
+		WebsiteDomain:         strings.TrimRight(envOrDefault("SUPERTOKENS_WEBSITE_DOMAIN", "http://localhost:5173"), "/"),
+		APIBasePath:           envOrDefault("SUPERTOKENS_API_BASE_PATH", "/auth"),
+		WebsiteBasePath:       envOrDefault("SUPERTOKENS_WEBSITE_BASE_PATH", "/auth"),
+		AdminEmails:           emailSet(envOrDefault("SUPERTOKENS_ADMIN_EMAILS", "admin@example.com")),
+		BaristaEmails:         emailSet(envOrDefault("SUPERTOKENS_BARISTA_EMAILS", "barista@example.com")),
+		GuestLimitPerSecond:   envInt("AUTH_GUEST_RPS", 10),
+		UserLimitPerSecond:    envInt("AUTH_USER_RPS", 10),
+		BaristaLimitPerSecond: envInt("AUTH_BARISTA_RPS", 250),
+		AdminLimitPerSecond:   envInt("AUTH_ADMIN_RPS", 1000),
 	}
 }
 
 func (c Config) RoleForEmail(email string) Role {
-	if _, ok := c.AdminEmails[strings.ToLower(strings.TrimSpace(email))]; ok {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if _, ok := c.AdminEmails[email]; ok {
 		return RoleAdmin
+	}
+	if _, ok := c.BaristaEmails[email]; ok {
+		return RoleBarista
 	}
 	return RoleUser
 }

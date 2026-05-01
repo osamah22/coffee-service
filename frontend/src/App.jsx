@@ -70,6 +70,9 @@ function Console() {
   const orderStats = useMemo(() => summarizeOrders(orders), [orders]);
   const adminStats = useMemo(() => summarizeOrders(adminOrders), [adminOrders]);
   const isAdmin = user?.role === "admin";
+  const isBarista = user?.role === "barista";
+  const canManageOrders = isAdmin || isBarista;
+  const canOrder = !isBarista;
 
   function addToCart(product) {
     setCart((current) => ({
@@ -152,23 +155,23 @@ function Console() {
   }
 
   async function loadAdminOrders() {
-    if (!isAdmin) {
-      setStatus("ADMIN REQUIRED");
+    if (!canManageOrders) {
+      setStatus("STAFF REQUIRED");
       return;
     }
 
     setAdminLoading(true);
-    setStatus("LOADING ADMIN");
+    setStatus("LOADING QUEUE");
     const response = await apiFetch("/orders");
     setAdminLoading(false);
 
     if (!response.ok) {
-      setStatus(response.status === 403 ? "ADMIN DENIED" : "ADMIN FAILED");
+      setStatus(response.status === 403 ? "STAFF DENIED" : "QUEUE FAILED");
       return;
     }
 
     setAdminOrders(await response.json());
-    setStatus("ADMIN ONLINE");
+    setStatus("QUEUE ONLINE");
   }
 
   async function updateAdminOrder(orderId, action) {
@@ -199,18 +202,20 @@ function Console() {
           <button type="button" className={view === "menu" ? "active" : ""} onClick={() => setView("menu")}>
             MENU
           </button>
-          <button type="button" className={view === "orders" ? "active" : ""} onClick={() => {
-            setView("orders");
-            loadOrders();
-          }}>
-            ORDERS
-          </button>
-          {isAdmin && (
+          {canOrder && (
+            <button type="button" className={view === "orders" ? "active" : ""} onClick={() => {
+              setView("orders");
+              loadOrders();
+            }}>
+              ORDERS
+            </button>
+          )}
+          {canManageOrders && (
             <button type="button" className={view === "admin" ? "active" : ""} onClick={() => {
               setView("admin");
               loadAdminOrders();
             }}>
-              ADMIN
+              BARISTA
             </button>
           )}
           <button type="button" className="icon-button" onClick={() => setTheme(toggleTheme(theme))}>
@@ -235,14 +240,14 @@ function Console() {
         <span>{status}</span>
         <span>{user ? user.role.toUpperCase() : "GUEST"}</span>
         <span>{cartCount} IN CART</span>
-        <span>{isAdmin ? `${adminStats.preparing} ACTIVE` : `${orders.length} PREVIOUS`}</span>
+        <span>{canManageOrders ? `${activeOrderCount(adminStats)} ACTIVE` : `${orders.length} PREVIOUS`}</span>
       </section>
 
       <section className="overview-strip" aria-label="Overview">
         <Metric label="Cart total" value={formatPrice(cartTotal)} />
         <Metric label="Previous orders" value={String(orders.length)} />
         <Metric label="Previous spend" value={formatPrice(orderStats.revenue)} />
-        <Metric label={isAdmin ? "Admin queue" : "Ready drinks"} value={isAdmin ? String(adminStats.preparing) : String(products.length)} />
+        <Metric label={canManageOrders ? "Staff queue" : "Ready drinks"} value={canManageOrders ? String(activeOrderCount(adminStats)) : String(products.length)} />
       </section>
 
       {!user && authOpen && (
@@ -263,6 +268,9 @@ function Console() {
             try {
               const nextUser = authMode === "login" ? await login(values) : await signup(values);
               setUser(nextUser);
+              if (nextUser?.email) {
+                setCustomerEmail(nextUser.email);
+              }
               setAuthOpen(false);
               setStatus("MENU ONLINE");
             } catch (error) {
@@ -273,22 +281,25 @@ function Console() {
         />
       )}
 
-      <CartPanel
-        items={cartItems}
-        total={cartTotal}
-        message={orderMessage}
-        customerEmail={customerEmail}
-        emailLocked={Boolean(user?.email)}
-        onEmailChange={setCustomerEmail}
-        onQuantityChange={setCartQuantity}
-        onCheckout={placeOrder}
-      />
+      {canOrder && (
+        <CartPanel
+          items={cartItems}
+          total={cartTotal}
+          message={orderMessage}
+          customerEmail={customerEmail}
+          emailLocked={Boolean(user?.email)}
+          onEmailChange={setCustomerEmail}
+          onQuantityChange={setCartQuantity}
+          onCheckout={placeOrder}
+        />
+      )}
 
-      {isAdmin && view === "admin" ? (
-        <AdminDashboard
+      {canManageOrders && view === "admin" ? (
+        <OperationsDashboard
           orders={adminOrders}
           loading={adminLoading}
           stats={adminStats}
+          role={user.role}
           onRefresh={loadAdminOrders}
           onUpdateStatus={updateAdminOrder}
         />
@@ -313,7 +324,7 @@ function Console() {
                 <p className="chip">{product.category}</p>
                 <h2>{product.name}</h2>
                 <p>{formatPrice(product.price_in_kurus)}</p>
-                <button type="button" onClick={() => addToCart(product)}>ADD</button>
+                {canOrder && <button type="button" onClick={() => addToCart(product)}>ADD</button>}
               </div>
             </article>
           ))}
@@ -419,7 +430,7 @@ function OrdersPanel({ orders, loading, stats, customerEmail, emailLocked, onEma
       <div className="summary-grid">
         <Metric label="Total orders" value={String(stats.count)} />
         <Metric label="Preparing" value={String(stats.preparing)} />
-        <Metric label="Completed" value={String(stats.completed)} />
+        <Metric label="Ready" value={String(stats.ready)} />
         <Metric label="Total spend" value={formatPrice(stats.revenue)} />
       </div>
 
@@ -462,21 +473,23 @@ function OrdersPanel({ orders, loading, stats, customerEmail, emailLocked, onEma
   );
 }
 
-function AdminDashboard({ orders, loading, stats, onRefresh, onUpdateStatus }) {
+function OperationsDashboard({ orders, loading, stats, role, onRefresh, onUpdateStatus }) {
+  const sortedOrders = useMemo(() => sortOperationalOrders(orders), [orders]);
+
   return (
-    <section className="admin-panel" aria-label="Admin dashboard">
+    <section className="admin-panel" aria-label="Barista dashboard">
       <div className="admin-hero">
         <div>
-          <p className="eyebrow">ADMIN DASHBOARD</p>
-          <h2>Order Queue</h2>
+          <p className="eyebrow">{role === "admin" ? "ADMIN DASHBOARD" : "BARISTA DASHBOARD"}</p>
+          <h2>Barista Queue</h2>
         </div>
         <button type="button" onClick={onRefresh}>{loading ? "SYNCING" : "SYNC"}</button>
       </div>
 
       <div className="summary-grid">
-        <Metric label="Queue" value={String(stats.preparing)} />
+        <Metric label="Preparing" value={String(stats.preparing)} />
+        <Metric label="Ready" value={String(stats.ready)} />
         <Metric label="Completed" value={String(stats.completed)} />
-        <Metric label="Cancelled" value={String(stats.cancelled)} />
         <Metric label="Revenue" value={formatPrice(stats.revenue)} />
       </div>
 
@@ -484,8 +497,10 @@ function AdminDashboard({ orders, loading, stats, onRefresh, onUpdateStatus }) {
         <p className="cart-empty">{loading ? "LOADING QUEUE" : "NO ORDERS IN SYSTEM"}</p>
       ) : (
         <div className="admin-order-list">
-          {orders.map((order) => {
+          {sortedOrders.map((order) => {
             const isFinal = order.status === "completed" || order.status === "cancelled";
+            const canMarkReady = order.status === "preparing";
+            const canComplete = order.status === "ready";
 
             return (
               <article key={order.id} className={`admin-order-card status-${order.status}`}>
@@ -502,7 +517,10 @@ function AdminDashboard({ orders, loading, stats, onRefresh, onUpdateStatus }) {
                 </div>
                 <div className="admin-order-actions">
                   <span>{order.status.toUpperCase()}</span>
-                  <button type="button" disabled={isFinal || loading} onClick={() => onUpdateStatus(order.id, "complete")}>
+                  <button type="button" disabled={!canMarkReady || loading} onClick={() => onUpdateStatus(order.id, "ready")}>
+                    READY
+                  </button>
+                  <button type="button" disabled={!canComplete || loading} onClick={() => onUpdateStatus(order.id, "complete")}>
                     COMPLETE
                   </button>
                   <button type="button" disabled={isFinal || loading} onClick={() => onUpdateStatus(order.id, "cancel")}>
@@ -602,11 +620,13 @@ function summarizeOrders(orderList) {
       preparing: stats.preparing + (status === "preparing" ? 1 : 0),
       completed: stats.completed + (status === "completed" ? 1 : 0),
       cancelled: stats.cancelled + (status === "cancelled" ? 1 : 0),
+      ready: stats.ready + (status === "ready" ? 1 : 0),
       revenue: stats.revenue + (status === "cancelled" ? 0 : order.total),
     };
   }, {
     count: 0,
     preparing: 0,
+    ready: 0,
     completed: 0,
     cancelled: 0,
     revenue: 0,
@@ -615,6 +635,26 @@ function summarizeOrders(orderList) {
 
 function replaceOrder(orderList, order) {
   return orderList.map((item) => (item.id === order.id ? order : item));
+}
+
+function activeOrderCount(stats) {
+  return stats.preparing + stats.ready;
+}
+
+function sortOperationalOrders(orderList) {
+  const priority = {
+    ready: 0,
+    preparing: 1,
+    completed: 2,
+    cancelled: 3,
+  };
+  return [...orderList].sort((left, right) => {
+    const statusDiff = (priority[left.status] ?? 9) - (priority[right.status] ?? 9);
+    if (statusDiff !== 0) {
+      return statusDiff;
+    }
+    return new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
+  });
 }
 
 function slugify(value) {

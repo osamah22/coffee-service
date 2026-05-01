@@ -7,7 +7,8 @@ import (
 )
 
 type CreateOrderRequest struct {
-	Items []struct {
+	CustomerEmail string `json:"customer_email" binding:"omitempty,email"`
+	Items         []struct {
 		ProductID string `json:"product_id" binding:"required,uuid"`
 		Quantity  int    `json:"quantity" binding:"required,gt=0"`
 	} `json:"items" binding:"required,dive,required"`
@@ -21,15 +22,17 @@ type UpdateOrderRequest struct {
 }
 
 type OrderResponse struct {
-	ID        string             `json:"id"`
-	Items     []LineItemResponse `json:"items"`
-	Total     int64              `json:"total"`
-	Status    string             `json:"status"`
-	CreatedAt time.Time          `json:"created_at"`
+	ID            string             `json:"id"`
+	CustomerEmail string             `json:"customer_email"`
+	Items         []LineItemResponse `json:"items"`
+	Total         int64              `json:"total"`
+	Status        string             `json:"status"`
+	CreatedAt     time.Time          `json:"created_at"`
 }
 
 type LineItemResponse struct {
 	ProductID    string `json:"product_id"`
+	ProductName  string `json:"product_name"`
 	Quantity     int    `json:"quantity"`
 	PriceInKurus int64  `json:"price_in_kurus"`
 }
@@ -40,16 +43,18 @@ func ToOrderResponse(order *models.Order) OrderResponse {
 	for i, item := range order.Items {
 		items[i] = LineItemResponse{
 			ProductID:    item.ProductID.String(),
+			ProductName:  item.ProductName,
 			Quantity:     item.Quantity,
 			PriceInKurus: item.PriceInKurus,
 		}
 	}
 
 	return OrderResponse{
-		ID:        order.ID.String(),
-		Items:     items,
-		Total:     order.Total,
-		Status:    string(order.Status),
-		CreatedAt: order.CreatedAt,
+		ID:            order.ID.String(),
+		CustomerEmail: order.CustomerEmail,
+		Items:         items,
+		Total:         order.Total,
+		Status:        string(order.Status),
+		CreatedAt:     order.CreatedAt,
 	}
 }

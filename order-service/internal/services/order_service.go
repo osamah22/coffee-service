@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,7 +13,10 @@ import (
 	"gorm.io/gorm"
 )
 
-var ErrOrderNotFound = errors.New("order_not_found")
+var (
+	ErrOrderNotFound           = errors.New("order_not_found")
+	ErrInvalidStatusTransition = errors.New("invalid_order_status_transition")
+)
 
 type OrderService struct {
 	DB *gorm.DB
@@ -34,6 +38,12 @@ func (svc *OrderService) CreateOrder(ctx context.Context, order *models.Order) (
 		return nil, errors.New("order must have at least one item")
 	}
 
+	order.CustomerEmail = strings.TrimSpace(order.CustomerEmail)
+	if order.CustomerEmail == "" {
+		tx.Rollback()
+		return nil, errors.New("customer email is required")
+	}
+
 	var total int64
 	for i := range order.Items {
 		item := &order.Items[i]
@@ -46,6 +56,10 @@ func (svc *OrderService) CreateOrder(ctx context.Context, order *models.Order) (
 		if item.PriceInKurus < 0 {
 			tx.Rollback()
 			return nil, errors.New("price cannot be negative")
+		}
+		if strings.TrimSpace(item.ProductName) == "" {
+			tx.Rollback()
+			return nil, errors.New("product name is required")
 		}
 
 		total += int64(item.Quantity) * item.PriceInKurus
@@ -86,7 +100,20 @@ func (svc *OrderService) GetOrder(ctx context.Context, id uuid.UUID) (*models.Or
 // ListOrders returns all orders with items
 func (svc *OrderService) ListOrders(ctx context.Context) ([]models.Order, error) {
 	var orders []models.Order
-	tx := svc.DB.WithContext(ctx).Preload("Items").Find(&orders)
+	tx := svc.DB.WithContext(ctx).Preload("Items").Order("created_at DESC").Find(&orders)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+	return orders, nil
+}
+
+func (svc *OrderService) ListOrdersByEmail(ctx context.Context, email string) ([]models.Order, error) {
+	var orders []models.Order
+	tx := svc.DB.WithContext(ctx).
+		Preload("Items").
+		Where("LOWER(customer_email) = LOWER(?)", strings.TrimSpace(email)).
+		Order("created_at DESC").
+		Find(&orders)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
@@ -104,8 +131,8 @@ func (svc *OrderService) UpdateStatus(ctx context.Context, id uuid.UUID, status 
 			return result.Error
 		}
 
-		if order.Status == models.StatusCompleted || order.Status == models.StatusCancelled {
-			return errors.New("order-already_finalized")
+		if !canTransition(order.Status, status) {
+			return ErrInvalidStatusTransition
 		}
 
 		previousStatus := order.Status
@@ -121,6 +148,21 @@ func (svc *OrderService) UpdateStatus(ctx context.Context, id uuid.UUID, status 
 	}
 
 	return svc.GetOrder(ctx, id)
+}
+
+func canTransition(current, next models.OrderStatus) bool {
+	if current == next {
+		return false
+	}
+
+	switch current {
+	case models.StatusPreparing:
+		return next == models.StatusReady || next == models.StatusCancelled
+	case models.StatusReady:
+		return next == models.StatusCompleted || next == models.StatusCancelled
+	default:
+		return false
+	}
 }
 
 // DeleteOrder removes an order by ID.
@@ -148,11 +190,13 @@ func enqueueOrderCreated(tx *gorm.DB, order *models.Order) error {
 	eventID := uuid.New()
 	occurredAt := time.Now().UTC()
 	payload, err := json.Marshal(events.OrderCreated{
-		EventID:    eventID.String(),
-		OrderID:    order.ID.String(),
-		Status:     string(order.Status),
-		Total:      order.Total,
-		OccurredAt: occurredAt,
+		EventID:       eventID.String(),
+		OrderID:       order.ID.String(),
+		CustomerEmail: order.CustomerEmail,
+		Status:        string(order.Status),
+		Items:         eventItems(order.Items),
+		Total:         order.Total,
+		OccurredAt:    occurredAt,
 	})
 	if err != nil {
 		return err
@@ -175,6 +219,7 @@ func enqueueOrderStatusUpdated(tx *gorm.DB, order *models.Order, previousStatus 
 	payload, err := json.Marshal(events.OrderStatusUpdated{
 		EventID:        eventID.String(),
 		OrderID:        order.ID.String(),
+		CustomerEmail:  order.CustomerEmail,
 		PreviousStatus: string(previousStatus),
 		Status:         string(order.Status),
 		OccurredAt:     occurredAt,
@@ -192,4 +237,17 @@ func enqueueOrderStatusUpdated(tx *gorm.DB, order *models.Order, previousStatus 
 		Payload:       string(payload),
 		OccurredAt:    occurredAt,
 	}).Error
+}
+
+func eventItems(items []models.LineItem) []events.OrderItem {
+	payload := make([]events.OrderItem, len(items))
+	for i, item := range items {
+		payload[i] = events.OrderItem{
+			ProductID:    item.ProductID.String(),
+			ProductName:  item.ProductName,
+			Quantity:     item.Quantity,
+			PriceInKurus: item.PriceInKurus,
+		}
+	}
+	return payload
 }

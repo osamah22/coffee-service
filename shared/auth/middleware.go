@@ -14,9 +14,10 @@ const claimsContextKey = "auth_claims"
 type Role string
 
 const (
-	RoleGuest Role = "guest"
-	RoleUser  Role = "user"
-	RoleAdmin Role = "admin"
+	RoleGuest   Role = "guest"
+	RoleUser    Role = "user"
+	RoleBarista Role = "barista"
+	RoleAdmin   Role = "admin"
 )
 
 type Claims struct {
@@ -93,8 +94,13 @@ func (m *Middleware) authenticate(sessionRequired bool) gin.HandlerFunc {
 
 			payload := session.GetAccessTokenPayload()
 			role := RoleUser
-			if value, ok := payload["role"].(string); ok && value == string(RoleAdmin) {
-				role = RoleAdmin
+			if value, ok := payload["role"].(string); ok {
+				switch Role(value) {
+				case RoleAdmin:
+					role = RoleAdmin
+				case RoleBarista:
+					role = RoleBarista
+				}
 			}
 
 			email, _ := payload["email"].(string)
@@ -156,11 +162,12 @@ func CurrentClaims(c *gin.Context) (Claims, bool) {
 }
 
 type roleLimiter struct {
-	guestLimit int
-	userLimit  int
-	adminLimit int
-	mu         sync.Mutex
-	buckets    map[string]*bucket
+	guestLimit   int
+	userLimit    int
+	baristaLimit int
+	adminLimit   int
+	mu           sync.Mutex
+	buckets      map[string]*bucket
 }
 
 type bucket struct {
@@ -170,10 +177,11 @@ type bucket struct {
 
 func newRoleLimiter(cfg Config) *roleLimiter {
 	return &roleLimiter{
-		guestLimit: max(1, cfg.GuestLimitPerSecond),
-		userLimit:  max(1, cfg.UserLimitPerSecond),
-		adminLimit: max(1, cfg.AdminLimitPerSecond),
-		buckets:    map[string]*bucket{},
+		guestLimit:   max(1, cfg.GuestLimitPerSecond),
+		userLimit:    max(1, cfg.UserLimitPerSecond),
+		baristaLimit: max(1, cfg.BaristaLimitPerSecond),
+		adminLimit:   max(1, cfg.AdminLimitPerSecond),
+		buckets:      map[string]*bucket{},
 	}
 }
 
@@ -182,6 +190,8 @@ func (l *roleLimiter) Allow(claims Claims) bool {
 	switch claims.Role {
 	case RoleGuest:
 		limit = l.guestLimit
+	case RoleBarista:
+		limit = l.baristaLimit
 	case RoleAdmin:
 		limit = l.adminLimit
 	}

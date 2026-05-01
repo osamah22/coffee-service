@@ -12,16 +12,18 @@ type OrderStatus string
 
 const (
 	StatusPreparing OrderStatus = "preparing"
+	StatusReady     OrderStatus = "ready"
 	StatusCompleted OrderStatus = "completed"
 	StatusCancelled OrderStatus = "cancelled"
 )
 
 type Order struct {
-	ID        uuid.UUID   `gorm:"type:uuid;primaryKey"`
-	Items     []LineItem  `gorm:"foreignKey:OrderID"`
-	Total     int64       `gorm:"not null" `
-	Status    OrderStatus `gorm:"type:varchar(25);default:preparing"`
-	CreatedAt time.Time
+	ID            uuid.UUID   `gorm:"type:uuid;primaryKey"`
+	CustomerEmail string      `gorm:"type:varchar(255);not null;default:'';index"`
+	Items         []LineItem  `gorm:"foreignKey:OrderID"`
+	Total         int64       `gorm:"not null" `
+	Status        OrderStatus `gorm:"type:varchar(25);default:preparing"`
+	CreatedAt     time.Time
 }
 
 func (o *Order) BeforeCreate(tx *gorm.DB) (err error) {
@@ -42,6 +44,7 @@ type LineItem struct {
 
 	Quantity     int
 	PriceInKurus int64
+	ProductName  string `gorm:"type:varchar(255);not null;default:''"`
 }
 
 func (li *LineItem) BeforeCreate(tx *gorm.DB) (err error) {

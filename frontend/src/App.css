@@ -675,6 +675,10 @@ h1 {
   border-color: color-mix(in srgb, var(--accent) 62%, var(--line));
 }
 
+.admin-order-card.status-ready {
+  border-color: color-mix(in srgb, var(--accent-2) 72%, var(--line));
+}
+
 .admin-order-card.status-cancelled {
   border-color: color-mix(in srgb, var(--danger) 62%, var(--line));
 }

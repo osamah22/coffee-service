@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -23,16 +24,41 @@ func NewOrderHandler(orderSvc *services.OrderService, productSvc *services.Produ
 
 func (h *OrderHandler) Register(router gin.IRouter, authMiddleware *sharedauth.Middleware) {
 	orders := router.Group("/orders")
-	orders.GET("", authMiddleware.RequireRole(sharedauth.RoleAdmin), h.list)
-	orders.GET("/:id", authMiddleware.RequireRole(sharedauth.RoleAdmin), h.get)
+	orders.GET("", authMiddleware.RequireRole(sharedauth.RoleBarista, sharedauth.RoleAdmin), h.list)
+	orders.GET("/mine", authMiddleware.RequireRole(sharedauth.RoleGuest, sharedauth.RoleUser, sharedauth.RoleAdmin), h.listMine)
+	orders.GET("/:id", authMiddleware.RequireRole(sharedauth.RoleBarista, sharedauth.RoleAdmin), h.get)
 	orders.POST("", authMiddleware.RequireRole(sharedauth.RoleGuest, sharedauth.RoleUser, sharedauth.RoleAdmin), h.create)
-	orders.POST("/:id/complete", authMiddleware.RequireRole(sharedauth.RoleAdmin), h.complete)
-	orders.POST("/:id/cancel", authMiddleware.RequireRole(sharedauth.RoleAdmin), h.cancel)
+	orders.POST("/:id/ready", authMiddleware.RequireRole(sharedauth.RoleBarista, sharedauth.RoleAdmin), h.ready)
+	orders.POST("/:id/complete", authMiddleware.RequireRole(sharedauth.RoleBarista, sharedauth.RoleAdmin), h.complete)
+	orders.POST("/:id/cancel", authMiddleware.RequireRole(sharedauth.RoleBarista, sharedauth.RoleAdmin), h.cancel)
 	orders.DELETE("/:id", authMiddleware.RequireRole(sharedauth.RoleAdmin), h.delete)
 }
 
 func (h *OrderHandler) list(c *gin.Context) {
 	orders, err := h.orderSvc.ListOrders(c.Request.Context())
+	if err != nil {
+		respondError(c, err, http.StatusInternalServerError)
+		return
+	}
+
+	response := make([]dtos.OrderResponse, len(orders))
+	for i := range orders {
+		response[i] = dtos.ToOrderResponse(&orders[i])
+	}
+	c.JSON(http.StatusOK, response)
+}
+
+func (h *OrderHandler) listMine(c *gin.Context) {
+	email := strings.TrimSpace(c.Query("email"))
+	if claims, ok := sharedauth.CurrentClaims(c); ok && claims.Email != "" {
+		email = claims.Email
+	}
+	if email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "customer_email is required"})
+		return
+	}
+
+	orders, err := h.orderSvc.ListOrdersByEmail(c.Request.Context(), email)
 	if err != nil {
 		respondError(c, err, http.StatusInternalServerError)
 		return
@@ -65,7 +91,15 @@ func (h *OrderHandler) create(c *gin.Context) {
 		return
 	}
 
-	order := &models.Order{}
+	order := &models.Order{CustomerEmail: strings.TrimSpace(req.CustomerEmail)}
+	if claims, ok := sharedauth.CurrentClaims(c); ok && claims.Email != "" && order.CustomerEmail == "" {
+		order.CustomerEmail = claims.Email
+	}
+	if order.CustomerEmail == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "customer_email is required"})
+		return
+	}
+
 	for _, item := range req.Items {
 		productID, err := uuid.Parse(item.ProductID)
 		if err != nil {
@@ -81,6 +115,7 @@ func (h *OrderHandler) create(c *gin.Context) {
 
 		order.Items = append(order.Items, models.LineItem{
 			ProductID:    productID,
+			ProductName:  product.Name,
 			PriceInKurus: product.PriceInKurus,
 			Quantity:     item.Quantity,
 		})
@@ -100,6 +135,10 @@ func (h *OrderHandler) complete(c *gin.Context) {
 	h.updateStatus(c, models.StatusCompleted)
 }
 
+func (h *OrderHandler) ready(c *gin.Context) {
+	h.updateStatus(c, models.StatusReady)
+}
+
 func (h *OrderHandler) cancel(c *gin.Context) {
 	h.updateStatus(c, models.StatusCancelled)
 }
@@ -112,7 +151,7 @@ func (h *OrderHandler) updateStatus(c *gin.Context, status models.OrderStatus) {
 
 	order, err := h.orderSvc.UpdateStatus(c.Request.Context(), id, status)
 	if err != nil {
-		respondError(c, err, http.StatusBadRequest, services.ErrOrderNotFound)
+		respondError(c, err, http.StatusBadRequest, services.ErrOrderNotFound, services.ErrInvalidStatusTransition)
 		return
 	}
 

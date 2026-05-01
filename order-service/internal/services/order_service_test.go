@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -38,8 +39,10 @@ func TestCreateOrderWritesOutboxEvent(t *testing.T) {
 	svc := NewOrderService(db)
 
 	order, err := svc.CreateOrder(context.Background(), &models.Order{
+		CustomerEmail: "customer@example.com",
 		Items: []models.LineItem{{
 			ProductID:    uuid.New(),
+			ProductName:  "Espresso",
 			Quantity:     2,
 			PriceInKurus: 4500,
 		}},
@@ -70,6 +73,12 @@ func TestCreateOrderWritesOutboxEvent(t *testing.T) {
 	if payload.Total != 9000 {
 		t.Fatalf("expected total 9000, got %d", payload.Total)
 	}
+	if payload.CustomerEmail != "customer@example.com" {
+		t.Fatalf("expected customer email, got %q", payload.CustomerEmail)
+	}
+	if len(payload.Items) != 1 || payload.Items[0].ProductName != "Espresso" {
+		t.Fatalf("expected order item snapshot, got %#v", payload.Items)
+	}
 }
 
 func TestUpdateStatusWritesOutboxEvent(t *testing.T) {
@@ -77,8 +86,10 @@ func TestUpdateStatusWritesOutboxEvent(t *testing.T) {
 	svc := NewOrderService(db)
 
 	order, err := svc.CreateOrder(context.Background(), &models.Order{
+		CustomerEmail: "customer@example.com",
 		Items: []models.LineItem{{
 			ProductID:    uuid.New(),
+			ProductName:  "Espresso",
 			Quantity:     1,
 			PriceInKurus: 4500,
 		}},
@@ -87,12 +98,15 @@ func TestUpdateStatusWritesOutboxEvent(t *testing.T) {
 		t.Fatalf("expected create order to succeed, got %v", err)
 	}
 
+	if _, err := svc.UpdateStatus(context.Background(), order.ID, models.StatusReady); err != nil {
+		t.Fatalf("expected ready status update to succeed, got %v", err)
+	}
 	if _, err := svc.UpdateStatus(context.Background(), order.ID, models.StatusCompleted); err != nil {
-		t.Fatalf("expected status update to succeed, got %v", err)
+		t.Fatalf("expected completed status update to succeed, got %v", err)
 	}
 
 	var outbox models.OutboxEvent
-	if err := db.Where("event_type = ?", events.OrderStatusUpdatedType).First(&outbox).Error; err != nil {
+	if err := db.Where("event_type = ? AND payload LIKE ?", events.OrderStatusUpdatedType, `%"status":"completed"%`).First(&outbox).Error; err != nil {
 		t.Fatalf("expected status update outbox event, got %v", err)
 	}
 
@@ -100,10 +114,42 @@ func TestUpdateStatusWritesOutboxEvent(t *testing.T) {
 	if err := json.Unmarshal([]byte(outbox.Payload), &payload); err != nil {
 		t.Fatalf("payload should be valid JSON: %v", err)
 	}
-	if payload.PreviousStatus != string(models.StatusPreparing) {
-		t.Fatalf("expected previous status %q, got %q", models.StatusPreparing, payload.PreviousStatus)
+	if payload.PreviousStatus != string(models.StatusReady) {
+		t.Fatalf("expected previous status %q, got %q", models.StatusReady, payload.PreviousStatus)
 	}
 	if payload.Status != string(models.StatusCompleted) {
 		t.Fatalf("expected status %q, got %q", models.StatusCompleted, payload.Status)
+	}
+	if payload.CustomerEmail != "customer@example.com" {
+		t.Fatalf("expected customer email, got %q", payload.CustomerEmail)
+	}
+}
+
+func TestUpdateStatusRejectsInvalidTransitions(t *testing.T) {
+	db := newOrderTestDB(t)
+	svc := NewOrderService(db)
+
+	order, err := svc.CreateOrder(context.Background(), &models.Order{
+		CustomerEmail: "customer@example.com",
+		Items: []models.LineItem{{
+			ProductID:    uuid.New(),
+			ProductName:  "Espresso",
+			Quantity:     1,
+			PriceInKurus: 4500,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("expected create order to succeed, got %v", err)
+	}
+
+	if _, err := svc.UpdateStatus(context.Background(), order.ID, models.StatusCompleted); !errors.Is(err, ErrInvalidStatusTransition) {
+		t.Fatalf("expected invalid transition error, got %v", err)
+	}
+
+	if _, err := svc.UpdateStatus(context.Background(), order.ID, models.StatusReady); err != nil {
+		t.Fatalf("expected ready status update to succeed, got %v", err)
+	}
+	if _, err := svc.UpdateStatus(context.Background(), order.ID, models.StatusPreparing); !errors.Is(err, ErrInvalidStatusTransition) {
+		t.Fatalf("expected invalid transition error, got %v", err)
 	}
 }
