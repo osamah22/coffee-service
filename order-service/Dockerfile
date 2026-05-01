@@ -4,6 +4,7 @@ WORKDIR /app
 
 # copy module files (from repo root context)
 COPY order-service/go.mod order-service/go.sum ./order-service/
+COPY shared/go.mod shared/go.sum ./shared/
 
 WORKDIR /app/order-service
 RUN go mod download

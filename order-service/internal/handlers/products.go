@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/osamah22/coffee-service/order-service/internal/authn"
 	"github.com/osamah22/coffee-service/order-service/internal/dtos"
 	"github.com/osamah22/coffee-service/order-service/internal/models"
 	"github.com/osamah22/coffee-service/order-service/internal/services"
+	sharedauth "github.com/osamah22/coffee-service/shared/auth"
 )
 
 type ProductHandler struct {
@@ -19,13 +19,13 @@ func NewProductHandler(svc *services.ProductService) *ProductHandler {
 	return &ProductHandler{svc: svc}
 }
 
-func (h *ProductHandler) Register(router gin.IRouter, authMiddleware *authn.Middleware) {
+func (h *ProductHandler) Register(router gin.IRouter, authMiddleware *sharedauth.Middleware) {
 	products := router.Group("/products")
-	products.GET("", authMiddleware.RequireRole(authn.RoleGuest, authn.RoleUser, authn.RoleAdmin), h.list)
-	products.GET("/:id", authMiddleware.RequireRole(authn.RoleGuest, authn.RoleUser, authn.RoleAdmin), h.get)
-	products.POST("", authMiddleware.RequireRole(authn.RoleAdmin), h.create)
-	products.PUT("/:id", authMiddleware.RequireRole(authn.RoleAdmin), h.update)
-	products.DELETE("/:id", authMiddleware.RequireRole(authn.RoleAdmin), h.delete)
+	products.GET("", authMiddleware.RequireRole(sharedauth.RoleGuest, sharedauth.RoleUser, sharedauth.RoleAdmin), h.list)
+	products.GET("/:id", authMiddleware.RequireRole(sharedauth.RoleGuest, sharedauth.RoleUser, sharedauth.RoleAdmin), h.get)
+	products.POST("", authMiddleware.RequireRole(sharedauth.RoleAdmin), h.create)
+	products.PUT("/:id", authMiddleware.RequireRole(sharedauth.RoleAdmin), h.update)
+	products.DELETE("/:id", authMiddleware.RequireRole(sharedauth.RoleAdmin), h.delete)
 }
 
 func (h *ProductHandler) list(c *gin.Context) {

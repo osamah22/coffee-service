@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { apiFetch, getUser, login, logout, signup } from "./auth";
+import { apiFetch, fetchCurrentUser, getCachedUser, login, logout, signup } from "./auth";
 
 function App() {
   return <Console />;
@@ -7,7 +7,7 @@ function App() {
 
 function Console() {
   const [theme, setTheme] = useState(() => localStorage.getItem("coffee.theme") || "dark");
-  const [user, setUser] = useState(() => getUser());
+  const [user, setUser] = useState(() => getCachedUser());
   const [products, setProducts] = useState([]);
   const [status, setStatus] = useState("READY");
   const [authMode, setAuthMode] = useState("login");
@@ -18,6 +18,10 @@ function Console() {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem("coffee.theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    fetchCurrentUser().then(setUser);
+  }, []);
 
   useEffect(() => {
     setStatus(user ? "LOADING MENU" : "LOADING GUEST MENU");
@@ -41,7 +45,7 @@ function Console() {
     <main className="console-shell">
       <header className="topbar">
         <div>
-          <p className="eyebrow">ORDER-SERVICE / LOCAL AUTH</p>
+          <p className="eyebrow">ORDER-SERVICE / SUPERTOKENS</p>
           <h1>Coffee Control</h1>
         </div>
         <div className="toolbar">
@@ -49,8 +53,8 @@ function Console() {
             {theme === "dark" ? "SUN" : "MOON"}
           </button>
           {user ? (
-            <button type="button" onClick={() => {
-              logout();
+            <button type="button" onClick={async () => {
+              await logout();
               setUser(null);
             }}>LOG OUT</button>
           ) : (
@@ -132,7 +136,7 @@ function Console() {
 }
 
 function AuthPanel({ mode, error, onClose, onModeChange, onSubmit }) {
-  const [values, setValues] = useState({ name: "", email: "", password: "" });
+  const [values, setValues] = useState({ email: "", password: "" });
   const isSignup = mode === "signup";
 
   function update(field, value) {
@@ -141,7 +145,7 @@ function AuthPanel({ mode, error, onClose, onModeChange, onSubmit }) {
 
   async function submit(event) {
     event.preventDefault();
-    await onSubmit(isSignup ? values : { email: values.email, password: values.password });
+    await onSubmit({ email: values.email, password: values.password });
   }
 
   return (
@@ -153,12 +157,6 @@ function AuthPanel({ mode, error, onClose, onModeChange, onSubmit }) {
       </div>
       <button type="button" className="auth-close" onClick={onClose}>CLOSE</button>
       <form className="auth-form" onSubmit={submit}>
-        {isSignup && (
-          <label>
-            <span>NAME</span>
-            <input value={values.name} onChange={(event) => update("name", event.target.value)} minLength="2" required />
-          </label>
-        )}
         <label>
           <span>EMAIL</span>
           <input type="email" value={values.email} onChange={(event) => update("email", event.target.value)} required />

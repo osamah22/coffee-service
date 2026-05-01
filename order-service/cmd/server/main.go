@@ -8,11 +8,11 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/osamah22/coffee-service/order-service/internal/authn"
 	"github.com/osamah22/coffee-service/order-service/internal/handlers"
 	"github.com/osamah22/coffee-service/order-service/internal/models"
 	"github.com/osamah22/coffee-service/order-service/internal/seed"
 	"github.com/osamah22/coffee-service/order-service/internal/services"
+	sharedauth "github.com/osamah22/coffee-service/shared/auth"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -20,26 +20,24 @@ import (
 func main() {
 	port := envOrDefault("PORT", "8080")
 	db := setupDatabase()
+	authConfig := sharedauth.ConfigFromEnv()
+	if err := sharedauth.InitSuperTokens(authConfig); err != nil {
+		log.Fatal("supertokens setup failed:", err)
+	}
 
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
+	router.Use(sharedauth.CORS(authConfig), sharedauth.SuperTokens())
 	router.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
 	})
 
-	authMiddleware, err := authn.NewMiddleware(authn.ConfigFromEnv())
-	if err != nil {
-		log.Fatal("auth middleware setup failed:", err)
-	}
-	tokenIssuer, err := authn.NewTokenIssuer(authn.ConfigFromEnv())
-	if err != nil {
-		log.Fatal("auth token issuer setup failed:", err)
-	}
+	authMiddleware := sharedauth.NewMiddleware(authConfig)
 
 	addRoutes(
 		router,
 		authMiddleware,
-		handlers.NewAuthHandler(services.NewAuthService(db, tokenIssuer)),
+		sharedauth.NewHandlerSet(authConfig),
 		handlers.NewProductHandler(services.NewProductService(db)),
 		handlers.NewOrderHandler(services.NewOrderService(db), services.NewProductService(db)),
 	)
@@ -59,17 +57,13 @@ func setupDatabase() *gorm.DB {
 		log.Fatal("failed to connect database:", err)
 	}
 
-	if err := db.AutoMigrate(&models.User{}, &models.Product{}, &models.Order{}, &models.LineItem{}); err != nil {
+	if err := db.AutoMigrate(&models.Product{}, &models.Order{}, &models.LineItem{}); err != nil {
 		log.Fatal("auto migration failed:", err)
 	}
 
 	if err := seed.CoffeeMenu(context.Background(), db); err != nil {
 		log.Fatal("product seeding failed:", err)
 	}
-	if err := seed.AdminUser(context.Background(), db); err != nil {
-		log.Fatal("admin seeding failed:", err)
-	}
-
 	return db
 }
 

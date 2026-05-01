@@ -1,4 +1,4 @@
-package authn
+package auth
 
 import (
 	"net/http"
@@ -11,47 +11,104 @@ import (
 
 const claimsContextKey = "auth_claims"
 
+type Role string
+
+const (
+	RoleGuest Role = "guest"
+	RoleUser  Role = "user"
+	RoleAdmin Role = "admin"
+)
+
+type Claims struct {
+	Subject string `json:"subject"`
+	Email   string `json:"email,omitempty"`
+	Role    Role   `json:"role"`
+}
+
 type Middleware struct {
-	cfg      Config
-	verifier *Verifier
-	limiter  *roleLimiter
+	cfg     Config
+	limiter *roleLimiter
 }
 
-func NewMiddleware(cfg Config) (*Middleware, error) {
-	verifier, err := NewVerifier(cfg)
-	if err != nil {
-		return nil, err
-	}
+func NewMiddleware(cfg Config) *Middleware {
 	return &Middleware{
-		cfg:      cfg,
-		verifier: verifier,
-		limiter:  newRoleLimiter(cfg),
-	}, nil
+		cfg:     cfg,
+		limiter: newRoleLimiter(cfg),
+	}
 }
 
-func (m *Middleware) Authenticate() gin.HandlerFunc {
+func SuperTokens() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !m.cfg.Enabled {
-			c.Set(claimsContextKey, Claims{Subject: "dev", Role: RoleAdmin, Roles: []string{string(RoleAdmin)}})
+		handled := false
+		Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c.Request = r
 			c.Next()
+			handled = true
+		})).ServeHTTP(c.Writer, c.Request)
+
+		if !handled || c.Writer.Written() {
+			c.Abort()
+		}
+	}
+}
+
+func CORS(cfg Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		origin := c.GetHeader("Origin")
+		if origin != "" && (origin == cfg.WebsiteDomain || origin == cfg.APIDomain) {
+			c.Header("Access-Control-Allow-Origin", origin)
+			c.Header("Access-Control-Allow-Credentials", "true")
+			c.Header("Vary", "Origin")
+		}
+		c.Header("Access-Control-Allow-Headers", strings.Join(append([]string{"Content-Type"}, CORSHeaders()...), ","))
+		c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
+
+		if c.Request.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusNoContent)
 			return
 		}
 
-		header := c.GetHeader("Authorization")
-		if !strings.HasPrefix(header, "Bearer ") {
-			c.Set(claimsContextKey, guestClaims(c.ClientIP()))
-			c.Next()
-			return
-		}
-
-		claims, err := m.verifier.Verify(c.Request.Context(), strings.TrimSpace(strings.TrimPrefix(header, "Bearer ")))
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid bearer token"})
-			return
-		}
-
-		c.Set(claimsContextKey, claims)
 		c.Next()
+	}
+}
+
+func (m *Middleware) AuthenticateOptional() gin.HandlerFunc {
+	return m.authenticate(false)
+}
+
+func (m *Middleware) AuthenticateRequired() gin.HandlerFunc {
+	return m.authenticate(true)
+}
+
+func (m *Middleware) authenticate(sessionRequired bool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		VerifySession(sessionRequired, func(w http.ResponseWriter, r *http.Request) {
+			c.Request = r
+			session := SessionFromRequest(r)
+			if session == nil {
+				c.Set(claimsContextKey, guestClaims(c.ClientIP()))
+				c.Next()
+				return
+			}
+
+			payload := session.GetAccessTokenPayload()
+			role := RoleUser
+			if value, ok := payload["role"].(string); ok && value == string(RoleAdmin) {
+				role = RoleAdmin
+			}
+
+			email, _ := payload["email"].(string)
+			c.Set(claimsContextKey, Claims{
+				Subject: session.GetUserID(),
+				Email:   email,
+				Role:    role,
+			})
+			c.Next()
+		}).ServeHTTP(c.Writer, c.Request)
+
+		if c.Writer.Written() {
+			c.Abort()
+		}
 	}
 }
 
@@ -155,6 +212,5 @@ func guestClaims(ip string) Claims {
 	return Claims{
 		Subject: "guest:" + ip,
 		Role:    RoleGuest,
-		Roles:   []string{string(RoleGuest)},
 	}
 }

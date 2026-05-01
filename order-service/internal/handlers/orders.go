@@ -6,10 +6,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/osamah22/coffee-service/order-service/internal/authn"
 	"github.com/osamah22/coffee-service/order-service/internal/dtos"
 	"github.com/osamah22/coffee-service/order-service/internal/models"
 	"github.com/osamah22/coffee-service/order-service/internal/services"
+	sharedauth "github.com/osamah22/coffee-service/shared/auth"
 )
 
 type OrderHandler struct {
@@ -21,14 +21,14 @@ func NewOrderHandler(orderSvc *services.OrderService, productSvc *services.Produ
 	return &OrderHandler{orderSvc: orderSvc, productSvc: productSvc}
 }
 
-func (h *OrderHandler) Register(router gin.IRouter, authMiddleware *authn.Middleware) {
+func (h *OrderHandler) Register(router gin.IRouter, authMiddleware *sharedauth.Middleware) {
 	orders := router.Group("/orders")
-	orders.GET("", authMiddleware.RequireRole(authn.RoleAdmin), h.list)
-	orders.GET("/:id", authMiddleware.RequireRole(authn.RoleAdmin), h.get)
-	orders.POST("", authMiddleware.RequireRole(authn.RoleGuest, authn.RoleUser, authn.RoleAdmin), h.create)
-	orders.POST("/:id/complete", authMiddleware.RequireRole(authn.RoleAdmin), h.complete)
-	orders.POST("/:id/cancel", authMiddleware.RequireRole(authn.RoleAdmin), h.cancel)
-	orders.DELETE("/:id", authMiddleware.RequireRole(authn.RoleAdmin), h.delete)
+	orders.GET("", authMiddleware.RequireRole(sharedauth.RoleAdmin), h.list)
+	orders.GET("/:id", authMiddleware.RequireRole(sharedauth.RoleAdmin), h.get)
+	orders.POST("", authMiddleware.RequireRole(sharedauth.RoleGuest, sharedauth.RoleUser, sharedauth.RoleAdmin), h.create)
+	orders.POST("/:id/complete", authMiddleware.RequireRole(sharedauth.RoleAdmin), h.complete)
+	orders.POST("/:id/cancel", authMiddleware.RequireRole(sharedauth.RoleAdmin), h.cancel)
+	orders.DELETE("/:id", authMiddleware.RequireRole(sharedauth.RoleAdmin), h.delete)
 }
 
 func (h *OrderHandler) list(c *gin.Context) {
