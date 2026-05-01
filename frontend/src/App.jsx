@@ -13,6 +13,8 @@ function Console() {
   const [authMode, setAuthMode] = useState("login");
   const [authOpen, setAuthOpen] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [cart, setCart] = useState({});
+  const [orderMessage, setOrderMessage] = useState("");
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -40,6 +42,71 @@ function Console() {
     () => products.filter((product) => product.category === "hot").length,
     [products]
   );
+  const cartItems = useMemo(
+    () => products
+      .filter((product) => cart[product.id])
+      .map((product) => ({ ...product, quantity: cart[product.id] })),
+    [cart, products]
+  );
+  const cartCount = useMemo(
+    () => cartItems.reduce((total, item) => total + item.quantity, 0),
+    [cartItems]
+  );
+  const cartTotal = useMemo(
+    () => cartItems.reduce((total, item) => total + item.quantity * item.price_in_kurus, 0),
+    [cartItems]
+  );
+
+  function addToCart(product) {
+    setCart((current) => ({
+      ...current,
+      [product.id]: (current[product.id] || 0) + 1,
+    }));
+    setOrderMessage("");
+    setStatus("ADDED TO CART");
+  }
+
+  function setCartQuantity(productId, quantity) {
+    setCart((current) => {
+      const next = { ...current };
+      if (quantity < 1) {
+        delete next[productId];
+      } else {
+        next[productId] = quantity;
+      }
+      return next;
+    });
+    setOrderMessage("");
+  }
+
+  async function placeOrder() {
+    if (cartItems.length === 0) {
+      return;
+    }
+
+    setStatus("SENDING ORDER");
+    setOrderMessage("");
+    const response = await apiFetch("/orders", {
+      method: "POST",
+      body: JSON.stringify({
+        items: cartItems.map((item) => ({
+          product_id: item.id,
+          quantity: item.quantity,
+        })),
+      }),
+    });
+
+    if (!response.ok) {
+      setStatus("ORDER FAILED");
+      setOrderMessage("Order request failed");
+      return;
+    }
+
+    const order = await response.json();
+    setCart({});
+    setStatus("ORDER CREATED");
+    setOrderMessage(`ORDER ${order.id.slice(0, 8).toUpperCase()} CREATED`);
+  }
 
   return (
     <main className="console-shell">
@@ -69,7 +136,7 @@ function Console() {
       <section className="status-strip" aria-label="System status">
         <span>{status}</span>
         <span>{user ? user.role.toUpperCase() : "GUEST"}</span>
-        <span>{products.length} ITEMS</span>
+        <span>{cartCount} IN CART</span>
         <span>{hotCount} HOT</span>
       </section>
 
@@ -101,6 +168,14 @@ function Console() {
         />
       )}
 
+      <CartPanel
+        items={cartItems}
+        total={cartTotal}
+        message={orderMessage}
+        onQuantityChange={setCartQuantity}
+        onCheckout={placeOrder}
+      />
+
       <section className="product-grid">
         {products.map((product) => (
           <article key={product.id} className="product-card">
@@ -111,6 +186,7 @@ function Console() {
               <p className="chip">{product.category}</p>
               <h2>{product.name}</h2>
               <p>{formatPrice(product.price_in_kurus)}</p>
+              <button type="button" onClick={() => addToCart(product)}>ADD</button>
             </div>
           </article>
         ))}
@@ -132,6 +208,43 @@ function Console() {
         </section>
       )}
     </main>
+  );
+}
+
+function CartPanel({ items, total, message, onQuantityChange, onCheckout }) {
+  return (
+    <section className="cart-panel" aria-label="Cart">
+      <div className="cart-head">
+        <div>
+          <p className="eyebrow">ORDER BUFFER</p>
+          <h2>Cart</h2>
+        </div>
+        <strong>{formatPrice(total)}</strong>
+      </div>
+
+      {items.length === 0 ? (
+        <p className="cart-empty">NO ITEMS SELECTED</p>
+      ) : (
+        <div className="cart-items">
+          {items.map((item) => (
+            <div key={item.id} className="cart-item">
+              <span>{item.name}</span>
+              <div className="quantity-control">
+                <button type="button" aria-label={`Remove one ${item.name}`} onClick={() => onQuantityChange(item.id, item.quantity - 1)}>-</button>
+                <strong>{item.quantity}</strong>
+                <button type="button" aria-label={`Add one ${item.name}`} onClick={() => onQuantityChange(item.id, item.quantity + 1)}>+</button>
+              </div>
+              <strong>{formatPrice(item.quantity * item.price_in_kurus)}</strong>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="cart-actions">
+        {message && <p>{message}</p>}
+        <button type="button" disabled={items.length === 0} onClick={onCheckout}>PLACE ORDER</button>
+      </div>
+    </section>
   );
 }
 

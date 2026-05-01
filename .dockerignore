@@ -2,6 +2,8 @@
 
 !order-service
 !order-service/**
+!notification-service
+!notification-service/**
 !shared
 !shared/**
 !frontend

@@ -17,6 +17,16 @@ services:
       timeout: 5s
       retries: 10
 
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: order-service_rabbitmq
+    network_mode: host
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   supertokens:
     image: registry.supertokens.io/supertokens/supertokens-postgresql
     container_name: order-service_supertokens
@@ -43,6 +53,7 @@ services:
       SUPERTOKENS_API_BASE_PATH: /auth
       SUPERTOKENS_WEBSITE_BASE_PATH: /auth
       SUPERTOKENS_ADMIN_EMAILS: admin@example.com
+      RABBITMQ_URL: amqp://guest:guest@localhost:5672/
       AUTH_GUEST_RPS: "10"
       AUTH_ADMIN_RPS: "1000"
       AUTH_USER_RPS: "10"
@@ -51,6 +62,21 @@ services:
         condition: service_healthy
       supertokens:
         condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    network_mode: host
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile
+      network: host
+    container_name: order-service_notifications
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@localhost:5672/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     network_mode: host
 
   frontend:

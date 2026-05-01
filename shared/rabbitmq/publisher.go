@@ -3,6 +3,7 @@ package rabbitmq
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -31,7 +32,31 @@ func (p *Publisher) Publish(ctx context.Context, exchange, key string, msg any) 
 		false,
 		amqp.Publishing{
 			ContentType: "application/json",
+			Timestamp:   time.Now().UTC(),
 			Body:        body,
 		},
+	)
+}
+
+func (p *Publisher) PublishRaw(ctx context.Context, exchange, key string, msg amqp.Publishing) error {
+	if msg.Timestamp.IsZero() {
+		msg.Timestamp = time.Now().UTC()
+	}
+	if msg.DeliveryMode == 0 {
+		msg.DeliveryMode = amqp.Persistent
+	}
+
+	return p.channel.PublishWithContext(ctx, exchange, key, false, false, msg)
+}
+
+func DeclareTopicExchange(ch *amqp.Channel, name string) error {
+	return ch.ExchangeDeclare(
+		name,
+		amqp.ExchangeTopic,
+		true,
+		false,
+		false,
+		false,
+		nil,
 	)
 }

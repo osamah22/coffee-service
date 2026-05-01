@@ -19,6 +19,7 @@ async function authenticate(path, credentials) {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
+      "st-auth-mode": "cookie",
     },
     body: JSON.stringify({
       formFields: [
@@ -35,10 +36,13 @@ async function authenticate(path, credentials) {
 
   const session = await response.json();
   if (session.status && session.status !== "OK") {
-    throw new Error(authStatusMessage(session.status));
+    throw new Error(authStatusMessage(session));
   }
 
   const user = await fetchCurrentUser();
+  if (!user) {
+    throw new Error("Session was not created");
+  }
   localStorage.setItem(storageKeys.user, JSON.stringify(user));
   return user;
 }
@@ -49,6 +53,7 @@ export async function logout() {
     credentials: "include",
     headers: {
       Accept: "application/json",
+      "st-auth-mode": "cookie",
     },
   }).catch(() => {});
   localStorage.removeItem(storageKeys.user);
@@ -78,6 +83,7 @@ export async function apiFetch(path, options = {}) {
 async function sessionFetch(path, options = {}) {
   const headers = new Headers(options.headers || {});
   headers.set("Accept", "application/json");
+  headers.set("st-auth-mode", "cookie");
   if (options.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
@@ -102,6 +108,7 @@ async function refreshSession() {
     headers: {
       Accept: "application/json",
       rid: "session",
+      "st-auth-mode": "cookie",
     },
   }).catch(() => null);
   return Boolean(response && response.ok);
@@ -110,13 +117,17 @@ async function refreshSession() {
 async function errorMessage(response) {
   try {
     const body = await response.json();
-    return body.message || body.error || authStatusMessage(body.status) || "Authentication failed";
+    return body.message || body.error || authStatusMessage(body) || "Authentication failed";
   } catch {
     return "Authentication failed";
   }
 }
 
-function authStatusMessage(status) {
+function authStatusMessage(body) {
+  const status = typeof body === "string" ? body : body?.status;
+  if (status === "FIELD_ERROR" && Array.isArray(body?.formFields)) {
+    return body.formFields.map((field) => field.error).filter(Boolean).join(". ");
+  }
   if (status === "FIELD_ERROR") {
     return "Check your email and password";
   }

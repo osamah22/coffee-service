@@ -2,10 +2,13 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/osamah22/coffee-service/order-service/internal/models"
+	"github.com/osamah22/coffee-service/shared/events"
 	"gorm.io/gorm"
 )
 
@@ -58,6 +61,11 @@ func (svc *OrderService) CreateOrder(ctx context.Context, order *models.Order) (
 		return nil, err
 	}
 
+	if err := enqueueOrderCreated(tx, order); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
 	return order, tx.Commit().Error
 }
 
@@ -87,22 +95,28 @@ func (svc *OrderService) ListOrders(ctx context.Context) ([]models.Order, error)
 
 func (svc *OrderService) UpdateStatus(ctx context.Context, id uuid.UUID, status models.OrderStatus) (*models.Order, error) {
 	var order models.Order
-	tx := svc.DB.WithContext(ctx).First(&order, "id = ?", id)
+	if err := svc.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		result := tx.First(&order, "id = ?", id)
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return ErrOrderNotFound
+		}
+		if result.Error != nil {
+			return result.Error
+		}
 
-	if errors.Is(tx.Error, gorm.ErrRecordNotFound) {
-		return nil, ErrOrderNotFound
-	}
-	if tx.Error != nil {
-		return nil, tx.Error
-	}
+		if order.Status == models.StatusCompleted || order.Status == models.StatusCancelled {
+			return errors.New("order-already_finalized")
+		}
 
-	if order.Status == models.StatusCompleted || order.Status == models.StatusCancelled {
-		return nil, errors.New("order-already_finalized")
-	}
+		previousStatus := order.Status
+		order.Status = status
 
-	order.Status = status
+		if err := tx.Save(&order).Error; err != nil {
+			return err
+		}
 
-	if err := svc.DB.WithContext(ctx).Save(&order).Error; err != nil {
+		return enqueueOrderStatusUpdated(tx, &order, previousStatus)
+	}); err != nil {
 		return nil, err
 	}
 
@@ -128,4 +142,54 @@ func (svc *OrderService) DeleteOrder(ctx context.Context, id uuid.UUID) error {
 		}
 		return nil
 	})
+}
+
+func enqueueOrderCreated(tx *gorm.DB, order *models.Order) error {
+	eventID := uuid.New()
+	occurredAt := time.Now().UTC()
+	payload, err := json.Marshal(events.OrderCreated{
+		EventID:    eventID.String(),
+		OrderID:    order.ID.String(),
+		Status:     string(order.Status),
+		Total:      order.Total,
+		OccurredAt: occurredAt,
+	})
+	if err != nil {
+		return err
+	}
+
+	return tx.Create(&models.OutboxEvent{
+		ID:            eventID,
+		EventType:     events.OrderCreatedType,
+		AggregateType: "order",
+		AggregateID:   order.ID.String(),
+		RoutingKey:    events.OrderCreatedType,
+		Payload:       string(payload),
+		OccurredAt:    occurredAt,
+	}).Error
+}
+
+func enqueueOrderStatusUpdated(tx *gorm.DB, order *models.Order, previousStatus models.OrderStatus) error {
+	eventID := uuid.New()
+	occurredAt := time.Now().UTC()
+	payload, err := json.Marshal(events.OrderStatusUpdated{
+		EventID:        eventID.String(),
+		OrderID:        order.ID.String(),
+		PreviousStatus: string(previousStatus),
+		Status:         string(order.Status),
+		OccurredAt:     occurredAt,
+	})
+	if err != nil {
+		return err
+	}
+
+	return tx.Create(&models.OutboxEvent{
+		ID:            eventID,
+		EventType:     events.OrderStatusUpdatedType,
+		AggregateType: "order",
+		AggregateID:   order.ID.String(),
+		RoutingKey:    events.OrderStatusUpdatedType,
+		Payload:       string(payload),
+		OccurredAt:    occurredAt,
+	}).Error
 }

@@ -1,8 +1,25 @@
 package events
 
+import "time"
+
+const (
+	OrderExchange          = "coffee.orders"
+	OrderCreatedType       = "order.created"
+	OrderStatusUpdatedType = "order.status_updated"
+)
+
 type OrderCreated struct {
-	OrderID   string `json:"order_id"`
-	UserID    string `json:"user_id"`
-	UserEmail string `json:"user_email"`
-	CreatedAt string `json:"created_at"`
+	EventID    string    `json:"event_id"`
+	OrderID    string    `json:"order_id"`
+	Status     string    `json:"status"`
+	Total      int64     `json:"total"`
+	OccurredAt time.Time `json:"occurred_at"`
+}
+
+type OrderStatusUpdated struct {
+	EventID        string    `json:"event_id"`
+	OrderID        string    `json:"order_id"`
+	PreviousStatus string    `json:"previous_status"`
+	Status         string    `json:"status"`
+	OccurredAt     time.Time `json:"occurred_at"`
 }

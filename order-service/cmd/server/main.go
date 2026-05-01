@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/osamah22/coffee-service/order-service/internal/handlers"
@@ -42,6 +43,8 @@ func main() {
 		handlers.NewOrderHandler(services.NewOrderService(db), services.NewProductService(db)),
 	)
 
+	startOutboxDispatcher(db)
+
 	log.Printf("starting order-service on port %s", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), router))
 }
@@ -57,7 +60,7 @@ func setupDatabase() *gorm.DB {
 		log.Fatal("failed to connect database:", err)
 	}
 
-	if err := db.AutoMigrate(&models.Product{}, &models.Order{}, &models.LineItem{}); err != nil {
+	if err := db.AutoMigrate(&models.Product{}, &models.Order{}, &models.LineItem{}, &models.OutboxEvent{}); err != nil {
 		log.Fatal("auto migration failed:", err)
 	}
 
@@ -65,6 +68,12 @@ func setupDatabase() *gorm.DB {
 		log.Fatal("product seeding failed:", err)
 	}
 	return db
+}
+
+func startOutboxDispatcher(db *gorm.DB) {
+	rabbitURL := envOrDefault("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
+	dispatcher := services.NewOutboxDispatcher(db, rabbitURL, 2*time.Second, 10)
+	go dispatcher.Run(context.Background())
 }
 
 func envOrDefault(key, fallback string) string {
