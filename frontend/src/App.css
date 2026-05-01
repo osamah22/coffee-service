@@ -74,6 +74,37 @@ h1 {
   text-align: center;
 }
 
+.overview-strip,
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.metric {
+  min-height: 74px;
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  border: 2px solid var(--line);
+  background: var(--panel-2);
+  padding: 12px;
+}
+
+.metric span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.metric strong {
+  color: var(--accent);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
 .login-panel {
   position: relative;
   min-height: 420px;
@@ -484,6 +515,222 @@ h1 {
   color: var(--accent);
 }
 
+.toolbar .active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.email-field {
+  display: grid;
+  gap: 6px;
+  color: var(--accent-2);
+  font-weight: 700;
+}
+
+.email-field input {
+  min-height: 42px;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  padding: 8px 10px;
+  outline: none;
+}
+
+.email-field input:focus {
+  border-color: var(--accent);
+}
+
+.email-field input:disabled {
+  color: var(--muted);
+}
+
+.orders-panel {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.orders-panel .summary-grid {
+  margin-bottom: 0;
+}
+
+.orders-head,
+.order-card-head,
+.order-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.orders-head {
+  border: 2px solid var(--line);
+  background: var(--panel-2);
+  padding: 16px;
+}
+
+.orders-head h2 {
+  color: var(--ink);
+  font-size: 2rem;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.order-list {
+  display: grid;
+  gap: 12px;
+}
+
+.order-card {
+  display: grid;
+  gap: 12px;
+  border: 2px solid var(--line);
+  background: var(--panel-2);
+  padding: 14px;
+}
+
+.order-card-head {
+  min-height: 40px;
+  border-bottom: 2px solid var(--line);
+  padding-bottom: 10px;
+}
+
+.order-card-head strong {
+  color: var(--accent);
+}
+
+.order-card-head span {
+  color: var(--accent-2);
+  font-weight: 700;
+}
+
+.order-lines {
+  display: grid;
+  gap: 6px;
+}
+
+.order-line {
+  min-height: 34px;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  padding: 6px 8px;
+}
+
+.order-line span {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.order-line strong {
+  color: var(--accent);
+}
+
+.order-card time {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.admin-panel {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.admin-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 2px solid var(--line);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 20%, transparent) 0 8px, transparent 8px 16px),
+    var(--panel-2);
+  padding: 16px;
+}
+
+.admin-hero h2 {
+  color: var(--ink);
+  font-size: 2rem;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.admin-order-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-order-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 230px;
+  gap: 12px;
+  border: 2px solid var(--line);
+  background: var(--panel-2);
+  padding: 12px;
+}
+
+.admin-order-card.status-completed {
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--line));
+}
+
+.admin-order-card.status-cancelled {
+  border-color: color-mix(in srgb, var(--danger) 62%, var(--line));
+}
+
+.admin-order-main {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.admin-order-main > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-order-main strong,
+.admin-order-actions span {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.admin-order-main span,
+.admin-order-main p {
+  min-width: 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.admin-order-main p {
+  overflow-wrap: anywhere;
+}
+
+.admin-order-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-content: stretch;
+  gap: 8px;
+}
+
+.admin-order-actions span {
+  display: grid;
+  place-items: center;
+  min-height: 36px;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  color: var(--accent-2);
+}
+
+button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
 .auth-panel {
   position: relative;
   display: grid;
@@ -611,6 +858,11 @@ h1 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .overview-strip,
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .auth-panel {
     grid-template-columns: 1fr;
     padding-top: 58px;
@@ -618,9 +870,18 @@ h1 {
 
   .cart-head,
   .cart-actions,
-  .cart-item {
+  .cart-item,
+  .orders-head,
+  .admin-hero,
+  .admin-order-main > div,
+  .order-card-head,
+  .order-line {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .admin-order-card {
+    grid-template-columns: 1fr;
   }
 
   .quantity-control {

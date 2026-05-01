@@ -8,12 +8,18 @@ function App() {
 function Console() {
   const [theme, setTheme] = useState(() => localStorage.getItem("coffee.theme") || "dark");
   const [user, setUser] = useState(() => getCachedUser());
+  const [view, setView] = useState("menu");
   const [products, setProducts] = useState([]);
   const [status, setStatus] = useState("READY");
   const [authMode, setAuthMode] = useState("login");
   const [authOpen, setAuthOpen] = useState(false);
   const [authError, setAuthError] = useState("");
   const [cart, setCart] = useState({});
+  const [customerEmail, setCustomerEmail] = useState(() => localStorage.getItem("coffee.customer.email") || "");
+  const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [adminOrders, setAdminOrders] = useState([]);
+  const [adminLoading, setAdminLoading] = useState(false);
   const [orderMessage, setOrderMessage] = useState("");
 
   useEffect(() => {
@@ -22,11 +28,20 @@ function Console() {
   }, [theme]);
 
   useEffect(() => {
-    fetchCurrentUser().then(setUser);
+    fetchCurrentUser().then((currentUser) => {
+      setUser(currentUser);
+      if (currentUser?.email) {
+        setCustomerEmail(currentUser.email);
+        localStorage.setItem("coffee.customer.email", currentUser.email);
+      }
+    });
   }, []);
 
   useEffect(() => {
-    setStatus(user ? "LOADING MENU" : "LOADING GUEST MENU");
+    localStorage.setItem("coffee.customer.email", customerEmail);
+  }, [customerEmail]);
+
+  useEffect(() => {
     apiFetch("/products")
       .then(async (response) => {
         if (!response.ok) {
@@ -38,10 +53,6 @@ function Console() {
       .catch(() => setStatus(user ? "AUTH REQUIRED" : "GUEST RATE LIMITED"));
   }, [user]);
 
-  const hotCount = useMemo(
-    () => products.filter((product) => product.category === "hot").length,
-    [products]
-  );
   const cartItems = useMemo(
     () => products
       .filter((product) => cart[product.id])
@@ -56,6 +67,9 @@ function Console() {
     () => cartItems.reduce((total, item) => total + item.quantity * item.price_in_kurus, 0),
     [cartItems]
   );
+  const orderStats = useMemo(() => summarizeOrders(orders), [orders]);
+  const adminStats = useMemo(() => summarizeOrders(adminOrders), [adminOrders]);
+  const isAdmin = user?.role === "admin";
 
   function addToCart(product) {
     setCart((current) => ({
@@ -83,12 +97,18 @@ function Console() {
     if (cartItems.length === 0) {
       return;
     }
+    if (!customerEmail.trim()) {
+      setStatus("EMAIL REQUIRED");
+      setOrderMessage("Enter an email for the receipt");
+      return;
+    }
 
     setStatus("SENDING ORDER");
     setOrderMessage("");
     const response = await apiFetch("/orders", {
       method: "POST",
       body: JSON.stringify({
+        customer_email: customerEmail.trim(),
         items: cartItems.map((item) => ({
           product_id: item.id,
           quantity: item.quantity,
@@ -104,8 +124,68 @@ function Console() {
 
     const order = await response.json();
     setCart({});
+    setOrders((current) => [order, ...current.filter((item) => item.id !== order.id)]);
+    setView("orders");
     setStatus("ORDER CREATED");
     setOrderMessage(`ORDER ${order.id.slice(0, 8).toUpperCase()} CREATED`);
+  }
+
+  async function loadOrders() {
+    if (!customerEmail.trim()) {
+      setStatus("EMAIL REQUIRED");
+      setOrderMessage("Enter an email to find orders");
+      return;
+    }
+
+    setOrdersLoading(true);
+    setStatus("LOADING ORDERS");
+    const response = await apiFetch(`/orders/mine?email=${encodeURIComponent(customerEmail.trim())}`);
+    setOrdersLoading(false);
+
+    if (!response.ok) {
+      setStatus("ORDERS FAILED");
+      return;
+    }
+
+    setOrders(await response.json());
+    setStatus("ORDERS ONLINE");
+  }
+
+  async function loadAdminOrders() {
+    if (!isAdmin) {
+      setStatus("ADMIN REQUIRED");
+      return;
+    }
+
+    setAdminLoading(true);
+    setStatus("LOADING ADMIN");
+    const response = await apiFetch("/orders");
+    setAdminLoading(false);
+
+    if (!response.ok) {
+      setStatus(response.status === 403 ? "ADMIN DENIED" : "ADMIN FAILED");
+      return;
+    }
+
+    setAdminOrders(await response.json());
+    setStatus("ADMIN ONLINE");
+  }
+
+  async function updateAdminOrder(orderId, action) {
+    setAdminLoading(true);
+    setStatus(`${action.toUpperCase()} ORDER`);
+    const response = await apiFetch(`/orders/${orderId}/${action}`, { method: "POST" });
+    setAdminLoading(false);
+
+    if (!response.ok) {
+      setStatus("ORDER UPDATE FAILED");
+      return;
+    }
+
+    const updatedOrder = await response.json();
+    setAdminOrders((current) => replaceOrder(current, updatedOrder));
+    setOrders((current) => replaceOrder(current, updatedOrder));
+    setStatus("ORDER UPDATED");
   }
 
   return (
@@ -116,6 +196,23 @@ function Console() {
           <h1>Coffee Control</h1>
         </div>
         <div className="toolbar">
+          <button type="button" className={view === "menu" ? "active" : ""} onClick={() => setView("menu")}>
+            MENU
+          </button>
+          <button type="button" className={view === "orders" ? "active" : ""} onClick={() => {
+            setView("orders");
+            loadOrders();
+          }}>
+            ORDERS
+          </button>
+          {isAdmin && (
+            <button type="button" className={view === "admin" ? "active" : ""} onClick={() => {
+              setView("admin");
+              loadAdminOrders();
+            }}>
+              ADMIN
+            </button>
+          )}
           <button type="button" className="icon-button" onClick={() => setTheme(toggleTheme(theme))}>
             {theme === "dark" ? "SUN" : "MOON"}
           </button>
@@ -123,6 +220,7 @@ function Console() {
             <button type="button" onClick={async () => {
               await logout();
               setUser(null);
+              setView("menu");
             }}>LOG OUT</button>
           ) : (
             <button type="button" onClick={() => {
@@ -137,7 +235,14 @@ function Console() {
         <span>{status}</span>
         <span>{user ? user.role.toUpperCase() : "GUEST"}</span>
         <span>{cartCount} IN CART</span>
-        <span>{hotCount} HOT</span>
+        <span>{isAdmin ? `${adminStats.preparing} ACTIVE` : `${orders.length} PREVIOUS`}</span>
+      </section>
+
+      <section className="overview-strip" aria-label="Overview">
+        <Metric label="Cart total" value={formatPrice(cartTotal)} />
+        <Metric label="Previous orders" value={String(orders.length)} />
+        <Metric label="Previous spend" value={formatPrice(orderStats.revenue)} />
+        <Metric label={isAdmin ? "Admin queue" : "Ready drinks"} value={isAdmin ? String(adminStats.preparing) : String(products.length)} />
       </section>
 
       {!user && authOpen && (
@@ -172,25 +277,48 @@ function Console() {
         items={cartItems}
         total={cartTotal}
         message={orderMessage}
+        customerEmail={customerEmail}
+        emailLocked={Boolean(user?.email)}
+        onEmailChange={setCustomerEmail}
         onQuantityChange={setCartQuantity}
         onCheckout={placeOrder}
       />
 
-      <section className="product-grid">
-        {products.map((product) => (
-          <article key={product.id} className="product-card">
-            <div className="product-image">
-              <PixelCoffee name={product.name} />
-            </div>
-            <div className="product-info">
-              <p className="chip">{product.category}</p>
-              <h2>{product.name}</h2>
-              <p>{formatPrice(product.price_in_kurus)}</p>
-              <button type="button" onClick={() => addToCart(product)}>ADD</button>
-            </div>
-          </article>
-        ))}
-      </section>
+      {isAdmin && view === "admin" ? (
+        <AdminDashboard
+          orders={adminOrders}
+          loading={adminLoading}
+          stats={adminStats}
+          onRefresh={loadAdminOrders}
+          onUpdateStatus={updateAdminOrder}
+        />
+      ) : view === "orders" ? (
+        <OrdersPanel
+          orders={orders}
+          loading={ordersLoading}
+          stats={orderStats}
+          customerEmail={customerEmail}
+          emailLocked={Boolean(user?.email)}
+          onEmailChange={setCustomerEmail}
+          onRefresh={loadOrders}
+        />
+      ) : (
+        <section className="product-grid">
+          {products.map((product) => (
+            <article key={product.id} className="product-card">
+              <div className="product-image">
+                <PixelCoffee name={product.name} />
+              </div>
+              <div className="product-info">
+                <p className="chip">{product.category}</p>
+                <h2>{product.name}</h2>
+                <p>{formatPrice(product.price_in_kurus)}</p>
+                <button type="button" onClick={() => addToCart(product)}>ADD</button>
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
 
       {!user && (
         <section className="guest-panel">
@@ -211,7 +339,25 @@ function Console() {
   );
 }
 
-function CartPanel({ items, total, message, onQuantityChange, onCheckout }) {
+function Metric({ label, value }) {
+  return (
+    <div className="metric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function CartPanel({
+  items,
+  total,
+  message,
+  customerEmail,
+  emailLocked,
+  onEmailChange,
+  onQuantityChange,
+  onCheckout,
+}) {
   return (
     <section className="cart-panel" aria-label="Cart">
       <div className="cart-head">
@@ -221,6 +367,17 @@ function CartPanel({ items, total, message, onQuantityChange, onCheckout }) {
         </div>
         <strong>{formatPrice(total)}</strong>
       </div>
+
+      <label className="email-field">
+        <span>RECEIPT EMAIL</span>
+        <input
+          type="email"
+          value={customerEmail}
+          disabled={emailLocked}
+          onChange={(event) => onEmailChange(event.target.value)}
+          placeholder="operator@example.com"
+        />
+      </label>
 
       {items.length === 0 ? (
         <p className="cart-empty">NO ITEMS SELECTED</p>
@@ -244,6 +401,119 @@ function CartPanel({ items, total, message, onQuantityChange, onCheckout }) {
         {message && <p>{message}</p>}
         <button type="button" disabled={items.length === 0} onClick={onCheckout}>PLACE ORDER</button>
       </div>
+    </section>
+  );
+}
+
+function OrdersPanel({ orders, loading, stats, customerEmail, emailLocked, onEmailChange, onRefresh }) {
+  return (
+    <section className="orders-panel" aria-label="Orders">
+      <div className="orders-head">
+        <div>
+          <p className="eyebrow">PREVIOUS ORDERS</p>
+          <h2>Order History</h2>
+        </div>
+        <button type="button" onClick={onRefresh}>{loading ? "SCANNING" : "REFRESH"}</button>
+      </div>
+
+      <div className="summary-grid">
+        <Metric label="Total orders" value={String(stats.count)} />
+        <Metric label="Preparing" value={String(stats.preparing)} />
+        <Metric label="Completed" value={String(stats.completed)} />
+        <Metric label="Total spend" value={formatPrice(stats.revenue)} />
+      </div>
+
+      <label className="email-field">
+        <span>ORDER EMAIL</span>
+        <input
+          type="email"
+          value={customerEmail}
+          disabled={emailLocked}
+          onChange={(event) => onEmailChange(event.target.value)}
+          placeholder="operator@example.com"
+        />
+      </label>
+
+      {orders.length === 0 ? (
+        <p className="cart-empty">{loading ? "LOADING ORDERS" : "NO ORDERS FOUND"}</p>
+      ) : (
+        <div className="order-list">
+          {orders.map((order) => (
+            <article key={order.id} className="order-card">
+              <div className="order-card-head">
+                <strong>#{order.id.slice(0, 8).toUpperCase()}</strong>
+                <span>{order.status.toUpperCase()}</span>
+                <strong>{formatPrice(order.total)}</strong>
+              </div>
+              <div className="order-lines">
+                {order.items.map((item) => (
+                  <div key={`${order.id}-${item.product_id}`} className="order-line">
+                    <span>{item.quantity}x {item.product_name || item.product_id.slice(0, 8).toUpperCase()}</span>
+                    <strong>{formatPrice(item.quantity * item.price_in_kurus)}</strong>
+                  </div>
+                ))}
+              </div>
+              <time dateTime={order.created_at}>{formatDate(order.created_at)}</time>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function AdminDashboard({ orders, loading, stats, onRefresh, onUpdateStatus }) {
+  return (
+    <section className="admin-panel" aria-label="Admin dashboard">
+      <div className="admin-hero">
+        <div>
+          <p className="eyebrow">ADMIN DASHBOARD</p>
+          <h2>Order Queue</h2>
+        </div>
+        <button type="button" onClick={onRefresh}>{loading ? "SYNCING" : "SYNC"}</button>
+      </div>
+
+      <div className="summary-grid">
+        <Metric label="Queue" value={String(stats.preparing)} />
+        <Metric label="Completed" value={String(stats.completed)} />
+        <Metric label="Cancelled" value={String(stats.cancelled)} />
+        <Metric label="Revenue" value={formatPrice(stats.revenue)} />
+      </div>
+
+      {orders.length === 0 ? (
+        <p className="cart-empty">{loading ? "LOADING QUEUE" : "NO ORDERS IN SYSTEM"}</p>
+      ) : (
+        <div className="admin-order-list">
+          {orders.map((order) => {
+            const isFinal = order.status === "completed" || order.status === "cancelled";
+
+            return (
+              <article key={order.id} className={`admin-order-card status-${order.status}`}>
+                <div className="admin-order-main">
+                  <div>
+                    <strong>#{order.id.slice(0, 8).toUpperCase()}</strong>
+                    <span>{order.customer_email}</span>
+                  </div>
+                  <div>
+                    <span>{formatDate(order.created_at)}</span>
+                    <strong>{formatPrice(order.total)}</strong>
+                  </div>
+                  <p>{order.items.map((item) => `${item.quantity}x ${item.product_name || item.product_id.slice(0, 8).toUpperCase()}`).join(" / ")}</p>
+                </div>
+                <div className="admin-order-actions">
+                  <span>{order.status.toUpperCase()}</span>
+                  <button type="button" disabled={isFinal || loading} onClick={() => onUpdateStatus(order.id, "complete")}>
+                    COMPLETE
+                  </button>
+                  <button type="button" disabled={isFinal || loading} onClick={() => onUpdateStatus(order.id, "cancel")}>
+                    CANCEL
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }
@@ -315,6 +585,36 @@ function formatPrice(kurus) {
     style: "currency",
     currency: "TRY",
   }).format(kurus / 100);
+}
+
+function formatDate(value) {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function summarizeOrders(orderList) {
+  return orderList.reduce((stats, order) => {
+    const status = order.status || "preparing";
+    return {
+      count: stats.count + 1,
+      preparing: stats.preparing + (status === "preparing" ? 1 : 0),
+      completed: stats.completed + (status === "completed" ? 1 : 0),
+      cancelled: stats.cancelled + (status === "cancelled" ? 1 : 0),
+      revenue: stats.revenue + (status === "cancelled" ? 0 : order.total),
+    };
+  }, {
+    count: 0,
+    preparing: 0,
+    completed: 0,
+    cancelled: 0,
+    revenue: 0,
+  });
+}
+
+function replaceOrder(orderList, order) {
+  return orderList.map((item) => (item.id === order.id ? order : item));
 }
 
 function slugify(value) {
