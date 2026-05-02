@@ -44,6 +44,20 @@ Default local endpoints:
 - RabbitMQ management: `http://localhost:15672`
 - MailHog UI: `http://localhost:8025`
 
+Quick smoke test after startup:
+
+```bash
+curl http://localhost:8080/ping
+curl -I http://localhost
+curl http://localhost:8025
+```
+
+Stop the stack:
+
+```bash
+docker compose down
+```
+
 Default role emails are configured through compose:
 
 - Admin: `admin@example.com`
