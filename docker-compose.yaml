@@ -27,6 +27,11 @@ services:
       timeout: 5s
       retries: 20
 
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: order-service_mailhog
+    network_mode: host
+
   supertokens:
     image: registry.supertokens.io/supertokens/supertokens-postgresql
     container_name: order-service_supertokens
@@ -74,9 +79,15 @@ services:
     container_name: order-service_notifications
     environment:
       RABBITMQ_URL: amqp://guest:guest@localhost:5672/
+      SMTP_HOST: localhost
+      SMTP_PORT: "1025"
+      SMTP_FROM: Coffee Service <orders@coffee.local>
+      NOTIFICATION_FALLBACK_EMAIL: dev@coffee.local
     depends_on:
       rabbitmq:
         condition: service_healthy
+      mailhog:
+        condition: service_started
     network_mode: host
 
   frontend:
