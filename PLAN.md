@@ -20,10 +20,10 @@ Build a clean, working coffee ordering demo that shows practical service boundar
 - [x] README updated to match the current implementation.
 - [x] Notification tests for config, email formatting, sender error handling, and consumer ack/nack/idempotency paths.
 - [x] Makefile for common checks.
+- [x] Handler tests for checkout product lookup, customer order history, staff status transitions, and role access.
 
 ## Next Work
 
-- [ ] Add handler-level tests for role access, order ownership/history, and staff status transitions.
 - [ ] Run and document a full Docker Compose smoke test.
 - [ ] Decide whether Swagger is still needed; if yes, add current annotations, wire `/swagger`, and regenerate docs.
 - [ ] Add screenshots or a short demo flow to the README.
@@ -46,7 +46,6 @@ Build a clean, working coffee ordering demo that shows practical service boundar
 ## Priority Order
 
 1. Compose smoke test.
-2. Handler/auth coverage.
-3. Documentation polish with screenshots/demo.
-4. Swagger regeneration only if it is useful for the portfolio demo.
-5. Gateway/Auth/Product-service separation.
+2. Documentation polish with screenshots/demo.
+3. Swagger regeneration only if it is useful for the portfolio demo.
+4. Gateway/Auth/Product-service separation.
