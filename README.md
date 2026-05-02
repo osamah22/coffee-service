@@ -124,4 +124,3 @@ Run the frontend build:
 cd frontend && npm run build
 ```
 
-Swagger files were removed because the generated output was stale and not wired into the current server. Regenerate and serve Swagger only after the handler annotations match the current API.
