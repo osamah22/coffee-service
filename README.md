@@ -88,6 +88,14 @@ Events are written to the order-service outbox inside the same database transact
 
 ## Tests and Checks
 
+Run the full local check suite:
+
+```bash
+make check
+```
+
+This runs Go tests for all modules, builds the frontend, and validates Docker Compose configuration.
+
 Run Go checks by module:
 
 ```bash

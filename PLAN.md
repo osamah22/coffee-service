@@ -18,14 +18,14 @@ Build a clean, working coffee ordering demo that shows practical service boundar
 - [x] SMTP and log email senders with MailHog local configuration.
 - [x] Docker Compose for Postgres, RabbitMQ, SuperTokens, order-service, notification-service, MailHog, and frontend.
 - [x] README updated to match the current implementation.
+- [x] Notification tests for config, email formatting, sender error handling, and consumer ack/nack/idempotency paths.
+- [x] Makefile for common checks.
 
 ## Next Work
 
-- [ ] Add tests for notification email formatting, SMTP sender behavior, and consumer ack/nack/idempotency paths.
 - [ ] Add handler-level tests for role access, order ownership/history, and staff status transitions.
 - [ ] Run and document a full Docker Compose smoke test.
 - [ ] Decide whether Swagger is still needed; if yes, add current annotations, wire `/swagger`, and regenerate docs.
-- [ ] Add a Makefile or task runner for common checks.
 - [ ] Add screenshots or a short demo flow to the README.
 
 ## Architecture Decisions
@@ -45,7 +45,7 @@ Build a clean, working coffee ordering demo that shows practical service boundar
 
 ## Priority Order
 
-1. Notification tests and compose smoke test.
+1. Compose smoke test.
 2. Handler/auth coverage.
 3. Documentation polish with screenshots/demo.
 4. Swagger regeneration only if it is useful for the portfolio demo.
