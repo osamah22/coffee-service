@@ -43,6 +43,7 @@ flowchart LR
 
 Detailed charts and reference docs:
 
+- [Credentials And Diagrams](docs/credentials-and-diagrams.md)
 - [Architecture](docs/architecture.md)
 - [API Reference](docs/api.md)
 - [Event Contracts](docs/events.md)

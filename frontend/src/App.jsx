@@ -11,6 +11,7 @@ function Console() {
   const [view, setView] = useState("menu");
   const [products, setProducts] = useState([]);
   const [status, setStatus] = useState("READY");
+  const [menuFilter, setMenuFilter] = useState("all");
   const [authMode, setAuthMode] = useState("login");
   const [authOpen, setAuthOpen] = useState(false);
   const [authError, setAuthError] = useState("");
@@ -30,6 +31,9 @@ function Console() {
   useEffect(() => {
     fetchCurrentUser().then((currentUser) => {
       setUser(currentUser);
+      if (currentUser?.role === "barista") {
+        setView("admin");
+      }
       if (currentUser?.email) {
         setCustomerEmail(currentUser.email);
         localStorage.setItem("coffee.customer.email", currentUser.email);
@@ -66,6 +70,10 @@ function Console() {
   const cartTotal = useMemo(
     () => cartItems.reduce((total, item) => total + item.quantity * item.price_in_kurus, 0),
     [cartItems]
+  );
+  const filteredProducts = useMemo(
+    () => products.filter((product) => menuFilter === "all" || product.category === menuFilter),
+    [menuFilter, products]
   );
   const orderStats = useMemo(() => summarizeOrders(orders), [orders]);
   const adminStats = useMemo(() => summarizeOrders(adminOrders), [adminOrders]);
@@ -194,45 +202,52 @@ function Console() {
   return (
     <main className="console-shell">
       <header className="topbar">
-        <div>
+        <div className="brand-block">
           <p className="eyebrow">ORDER-SERVICE / SUPERTOKENS</p>
           <h1>Coffee Control</h1>
+          <span>{user ? `${user.email} / ${user.role}` : "Guest checkout enabled"}</span>
         </div>
-        <div className="toolbar">
-          <button type="button" className={view === "menu" ? "active" : ""} onClick={() => setView("menu")}>
-            MENU
-          </button>
-          {canOrder && (
-            <button type="button" className={view === "orders" ? "active" : ""} onClick={() => {
-              setView("orders");
-              loadOrders();
-            }}>
-              ORDERS
+        <div className="topbar-actions" aria-label="Primary actions">
+          <div className="task-tabs" aria-label="Customer tasks">
+            <button type="button" className={view === "menu" ? "active" : ""} onClick={() => setView("menu")}>
+              Order
             </button>
-          )}
+            {canOrder && (
+              <button type="button" className={view === "orders" ? "active" : ""} onClick={() => {
+                setView("orders");
+                loadOrders();
+              }}>
+                My Orders
+              </button>
+            )}
+          </div>
           {canManageOrders && (
-            <button type="button" className={view === "admin" ? "active" : ""} onClick={() => {
-              setView("admin");
-              loadAdminOrders();
-            }}>
-              BARISTA
+            <div className="task-tabs staff-tabs" aria-label="Staff tasks">
+              <button type="button" className={view === "admin" ? "active" : ""} onClick={() => {
+                setView("admin");
+                loadAdminOrders();
+              }}>
+                Staff Queue
+              </button>
+            </div>
+          )}
+          <div className="utility-actions">
+            <button type="button" className="icon-button" onClick={() => setTheme(toggleTheme(theme))}>
+              {theme === "dark" ? "SUN" : "MOON"}
             </button>
-          )}
-          <button type="button" className="icon-button" onClick={() => setTheme(toggleTheme(theme))}>
-            {theme === "dark" ? "SUN" : "MOON"}
-          </button>
-          {user ? (
-            <button type="button" onClick={async () => {
-              await logout();
-              setUser(null);
-              setView("menu");
-            }}>LOG OUT</button>
-          ) : (
-            <button type="button" onClick={() => {
-              setAuthMode("login");
-              setAuthOpen(true);
-            }}>LOG IN</button>
-          )}
+            {user ? (
+              <button type="button" onClick={async () => {
+                await logout();
+                setUser(null);
+                setView("menu");
+              }}>Log Out</button>
+            ) : (
+              <button type="button" onClick={() => {
+                setAuthMode("login");
+                setAuthOpen(true);
+              }}>Log In</button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -243,12 +258,15 @@ function Console() {
         <span>{canManageOrders ? `${activeOrderCount(adminStats)} ACTIVE` : `${orders.length} PREVIOUS`}</span>
       </section>
 
-      <section className="overview-strip" aria-label="Overview">
-        <Metric label="Cart total" value={formatPrice(cartTotal)} />
-        <Metric label="Previous orders" value={String(orders.length)} />
-        <Metric label="Previous spend" value={formatPrice(orderStats.revenue)} />
-        <Metric label={canManageOrders ? "Staff queue" : "Ready drinks"} value={canManageOrders ? String(activeOrderCount(adminStats)) : String(products.length)} />
-      </section>
+      <TaskSummary
+        view={view}
+        cartTotal={cartTotal}
+        cartCount={cartCount}
+        productCount={products.length}
+        orderStats={orderStats}
+        adminStats={adminStats}
+        canManageOrders={canManageOrders}
+      />
 
       {!user && authOpen && (
         <AuthPanel
@@ -268,6 +286,7 @@ function Console() {
             try {
               const nextUser = authMode === "login" ? await login(values) : await signup(values);
               setUser(nextUser);
+              setView(nextUser?.role === "barista" ? "admin" : "menu");
               if (nextUser?.email) {
                 setCustomerEmail(nextUser.email);
               }
@@ -278,19 +297,6 @@ function Console() {
               setStatus("AUTH FAILED");
             }
           }}
-        />
-      )}
-
-      {canOrder && (
-        <CartPanel
-          items={cartItems}
-          total={cartTotal}
-          message={orderMessage}
-          customerEmail={customerEmail}
-          emailLocked={Boolean(user?.email)}
-          onEmailChange={setCustomerEmail}
-          onQuantityChange={setCartQuantity}
-          onCheckout={placeOrder}
         />
       )}
 
@@ -314,20 +320,54 @@ function Console() {
           onRefresh={loadOrders}
         />
       ) : (
-        <section className="product-grid">
-          {products.map((product) => (
-            <article key={product.id} className="product-card">
-              <div className="product-image">
-                <PixelCoffee name={product.name} />
+        <section className="order-workspace" aria-label="Order workspace">
+          <div className="menu-panel">
+            <div className="menu-head">
+              <div>
+                <p className="eyebrow">MENU</p>
+                <h2>Pick Drinks</h2>
               </div>
-              <div className="product-info">
-                <p className="chip">{product.category}</p>
-                <h2>{product.name}</h2>
-                <p>{formatPrice(product.price_in_kurus)}</p>
-                {canOrder && <button type="button" onClick={() => addToCart(product)}>ADD</button>}
+              <div className="category-tabs" aria-label="Menu filter">
+                {["all", "hot", "cold"].map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    className={menuFilter === category ? "active" : ""}
+                    onClick={() => setMenuFilter(category)}
+                  >
+                    {category}
+                  </button>
+                ))}
               </div>
-            </article>
-          ))}
+            </div>
+            <div className="product-grid">
+              {filteredProducts.map((product) => (
+                <article key={product.id} className="product-card">
+                  <div className="product-image">
+                    <PixelCoffee name={product.name} />
+                  </div>
+                  <div className="product-info">
+                    <p className="chip">{product.category}</p>
+                    <h2>{product.name}</h2>
+                    <p className="product-price">{formatPrice(product.price_in_kurus)}</p>
+                    {canOrder && <button type="button" onClick={() => addToCart(product)}>Add</button>}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+          {canOrder && (
+            <CartPanel
+              items={cartItems}
+              total={cartTotal}
+              message={orderMessage}
+              customerEmail={customerEmail}
+              emailLocked={Boolean(user?.email)}
+              onEmailChange={setCustomerEmail}
+              onQuantityChange={setCartQuantity}
+              onCheckout={placeOrder}
+            />
+          )}
         </section>
       )}
 
@@ -347,6 +387,39 @@ function Console() {
         </section>
       )}
     </main>
+  );
+}
+
+function TaskSummary({ view, cartTotal, cartCount, productCount, orderStats, adminStats, canManageOrders }) {
+  if (view === "admin" && canManageOrders) {
+    return (
+      <section className="overview-strip" aria-label="Staff queue summary">
+        <Metric label="Preparing" value={String(adminStats.preparing)} />
+        <Metric label="Ready" value={String(adminStats.ready)} />
+        <Metric label="Completed" value={String(adminStats.completed)} />
+        <Metric label="Queue revenue" value={formatPrice(adminStats.revenue)} />
+      </section>
+    );
+  }
+
+  if (view === "orders") {
+    return (
+      <section className="overview-strip" aria-label="Order history summary">
+        <Metric label="Orders" value={String(orderStats.count)} />
+        <Metric label="Preparing" value={String(orderStats.preparing)} />
+        <Metric label="Ready" value={String(orderStats.ready)} />
+        <Metric label="Total spend" value={formatPrice(orderStats.revenue)} />
+      </section>
+    );
+  }
+
+  return (
+    <section className="overview-strip" aria-label="Ordering summary">
+      <Metric label="Drinks" value={String(productCount)} />
+      <Metric label="Cart items" value={String(cartCount)} />
+      <Metric label="Cart total" value={formatPrice(cartTotal)} />
+      <Metric label="Minimum coffee" value={formatPrice(12000)} />
+    </section>
   );
 }
 

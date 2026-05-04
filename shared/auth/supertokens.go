@@ -2,6 +2,7 @@ package auth
 
 import (
 	"net/http"
+	"unicode/utf8"
 
 	"github.com/supertokens/supertokens-golang/recipe/emailpassword"
 	"github.com/supertokens/supertokens-golang/recipe/emailpassword/epmodels"
@@ -27,6 +28,14 @@ func InitSuperTokens(cfg Config) error {
 		},
 		RecipeList: []supertokens.Recipe{
 			emailpassword.Init(&epmodels.TypeInput{
+				SignUpFeature: &epmodels.TypeInputSignUp{
+					FormFields: []epmodels.TypeInputFormField{
+						{
+							ID:       "password",
+							Validate: validatePassword,
+						},
+					},
+				},
 				Override: &epmodels.OverrideStruct{
 					APIs: func(original epmodels.APIInterface) epmodels.APIInterface {
 						if original.SignUpPOST != nil {
@@ -58,6 +67,19 @@ func InitSuperTokens(cfg Config) error {
 			session.Init(nil),
 		},
 	})
+}
+
+func validatePassword(value interface{}, _ string) *string {
+	password, ok := value.(string)
+	if value == nil || !ok {
+		msg := "Password is required"
+		return &msg
+	}
+	if utf8.RuneCountInString(password) < 6 {
+		msg := "Password must be at least 6 characters"
+		return &msg
+	}
+	return nil
 }
 
 func Handler(next http.Handler) http.Handler {

@@ -13,27 +13,27 @@
 
 :root,
 :root[data-theme="dark"] {
-  --page-bg: #15120f;
-  --panel: #241d18;
-  --panel-2: #31271f;
-  --ink: #f2e7c9;
-  --muted: #b7a783;
-  --line: #6c553b;
-  --accent: #60f0b8;
-  --accent-2: #ffb85a;
+  --page-bg: #141616;
+  --panel: #20282a;
+  --panel-2: #2b3335;
+  --ink: #f4efe2;
+  --muted: #b9c0b7;
+  --line: #657477;
+  --accent: #65f0bd;
+  --accent-2: #f2c166;
   --danger: #ff6b6b;
   --shadow: rgba(0, 0, 0, 0.35);
 }
 
 :root[data-theme="light"] {
-  --page-bg: #eadcbf;
-  --panel: #fff2d0;
-  --panel-2: #f3dfb3;
-  --ink: #2a1f16;
-  --muted: #6b5638;
-  --line: #9d7a4a;
+  --page-bg: #f3ead9;
+  --panel: #fff8e9;
+  --panel-2: #e8f1ed;
+  --ink: #242927;
+  --muted: #637066;
+  --line: #84928c;
   --accent: #006d5b;
-  --accent-2: #9a3f00;
+  --accent-2: #9a4f00;
   --danger: #a82020;
   --shadow: rgba(87, 54, 22, 0.22);
 }
@@ -48,7 +48,6 @@ body {
   margin: 0;
   background:
     linear-gradient(rgba(255, 255, 255, 0.035) 50%, transparent 50%) 0 0 / 100% 4px,
-    radial-gradient(circle at 20% 10%, rgba(96, 240, 184, 0.11), transparent 28rem),
     var(--page-bg);
 }
 
