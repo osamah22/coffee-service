@@ -3,7 +3,6 @@ app.db
 .codex
 .codex/
 go.sum
-docs/
 
 order-service/server
 order-service/app

@@ -22,11 +22,13 @@ Build a clean, working coffee ordering demo that shows practical service boundar
 - [x] Makefile for common checks.
 - [x] Handler tests for checkout product lookup, customer order history, staff status transitions, and role access.
 - [x] Docker Compose smoke test documented for API, frontend, and MailHog.
+- [x] Architecture, API, event contract, runbook, and README diagrams documented.
+- [x] README demo flow documented for a portfolio walkthrough.
+- [x] Swagger decision recorded: keep Markdown docs for this portfolio demo unless generated OpenAPI becomes a concrete requirement.
 
 ## Next Work
 
-- [ ] Decide whether Swagger is still needed; if yes, add current annotations, wire `/swagger`, and regenerate docs.
-- [ ] Add screenshots or a short demo flow to the README.
+No remaining current-scope feature work. Items below are future improvements, not incomplete demo features.
 
 ## Architecture Decisions
 
@@ -45,6 +47,6 @@ Build a clean, working coffee ordering demo that shows practical service boundar
 
 ## Priority Order
 
-1. Documentation polish with screenshots/demo.
-2. Swagger regeneration only if it is useful for the portfolio demo.
-3. Gateway/Auth/Product-service separation.
+1. Add screenshots or a short recorded demo if the README will be used as a portfolio landing page.
+2. Gateway/Auth/Product-service separation.
+3. Observability, CI/CD, and production hardening.
