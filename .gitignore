@@ -13,3 +13,8 @@ frontend/dist/
 frontend/*.docx
 frontend/*.epub
 docs/*.pptx
+
+PLAN.md
+AGENTS.md
+
+*.excalidraw

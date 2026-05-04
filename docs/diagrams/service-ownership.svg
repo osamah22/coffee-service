@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="430" viewBox="0 0 900 430" role="img">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#1f2937"/>
+    </marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#fffdf7"/>
+  <line x1="230" y1="165.89285714285714" x2="330" y2="119.46428571428572" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="230" y1="204.91071428571428" x2="330" y2="199.55357142857142" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="230" y1="243.92857142857144" x2="330" y2="279.64285714285717" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="500" y1="310" x2="580" y2="310" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="665" y1="270" x2="665" y2="190" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="717" y1="190" x2="743" y2="210" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="40" y="160" width="190" height="100" rx="8" fill="#dbeafe" stroke="#1f2937" stroke-width="2"/><text x="135" y="188.4" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="135" dy="0">Frontend</tspan><tspan x="135" dy="21.599999999999998">menu, cart, orders,</tspan><tspan x="135" dy="21.599999999999998">staff queue</tspan></text>
+<rect x="330" y="40" width="170" height="80" rx="8" fill="#dcfce7" stroke="#1f2937" stroke-width="2"/><text x="415" y="69.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="415" dy="0">Auth routes</tspan><tspan x="415" dy="21.599999999999998">role middleware</tspan></text>
+<rect x="330" y="155" width="170" height="80" rx="8" fill="#dcfce7" stroke="#1f2937" stroke-width="2"/><text x="415" y="184.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="415" dy="0">Product/menu</tspan><tspan x="415" dy="21.599999999999998">handlers</tspan></text>
+<rect x="330" y="270" width="170" height="80" rx="8" fill="#dcfce7" stroke="#1f2937" stroke-width="2"/><text x="415" y="299.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="415" dy="0">Order handlers</tspan><tspan x="415" dy="21.599999999999998">workflow</tspan></text>
+<rect x="580" y="270" width="170" height="80" rx="8" fill="#fef3c7" stroke="#1f2937" stroke-width="2"/><text x="665" y="299.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="665" dy="0">Transactional</tspan><tspan x="665" dy="21.599999999999998">outbox</tspan></text>
+<rect x="580" y="110" width="170" height="80" rx="8" fill="#ffedd5" stroke="#1f2937" stroke-width="2"/><text x="665" y="139.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="665" dy="0">RabbitMQ</tspan><tspan x="665" dy="21.599999999999998">consumer</tspan></text>
+<rect x="710" y="210" width="170" height="80" rx="8" fill="#fee2e2" stroke="#1f2937" stroke-width="2"/><text x="795" y="239.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="795" dy="0">Email formatting</tspan><tspan x="795" dy="21.599999999999998">sender</tspan></text>
+</svg>

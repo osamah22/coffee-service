@@ -47,275 +47,80 @@ These credentials are for local development only.
 
 ## Runtime System
 
-```mermaid
-flowchart LR
-  Browser[Browser]
-  Frontend[React frontend\nNginx on :80]
-  API[Order service\nGo/Gin on :8080]
-  ST[SuperTokens\n:3567]
-  DB[(PostgreSQL\n:5432)]
-  MQ[(RabbitMQ\n:5672 / :15672)]
-  Notify[Notification service\nGo consumer]
-  MailHog[MailHog\nSMTP :1025 / UI :8025]
+![Runtime system Excalidraw diagram](diagrams/runtime-system.svg)
 
-  Browser -->|loads app| Frontend
-  Browser -->|HTTP JSON + cookies| API
-  API -->|signup/login/session recipe| ST
-  ST -->|metadata| DB
-  API -->|GORM| DB
-  API -->|publishes outbox events| MQ
-  MQ -->|order facts| Notify
-  Notify -->|SMTP| MailHog
-```
+[Edit Excalidraw source](diagrams/runtime-system.excalidraw)
 
 ## Service Ownership
 
-```mermaid
-flowchart TB
-  subgraph Frontend
-    UI[Menu, cart, orders, staff queue]
-  end
+![Service ownership Excalidraw diagram](diagrams/service-ownership.svg)
 
-  subgraph OrderService[Order service]
-    Auth[Auth routes and role middleware]
-    Products[Product/menu handlers]
-    Orders[Order handlers and workflow]
-    Outbox[Transactional outbox dispatcher]
-  end
-
-  subgraph NotificationService[Notification service]
-    Consumer[RabbitMQ consumer]
-    Email[Email formatting and sender]
-  end
-
-  UI --> Auth
-  UI --> Products
-  UI --> Orders
-  Orders --> Outbox
-  Outbox --> Consumer
-  Consumer --> Email
-```
+[Edit Excalidraw source](diagrams/service-ownership.excalidraw)
 
 ## Auth And Role Flow
 
-```mermaid
-sequenceDiagram
-  participant User as Browser user
-  participant UI as React frontend
-  participant API as Order service
-  participant ST as SuperTokens
+![Auth and role sequence Excalidraw diagram](diagrams/auth-role-sequence.svg)
 
-  User->>UI: Submit email/password
-  UI->>API: POST /auth/signup or /auth/signin
-  API->>ST: Create or verify email/password user
-  API->>API: Resolve role from configured email lists
-  API-->>UI: Set SuperTokens cookies
-  UI->>API: GET /auth/me
-  API-->>UI: {email, role}
-```
+[Edit Excalidraw source](diagrams/auth-role-sequence.excalidraw)
 
-```mermaid
-flowchart TD
-  Request[HTTP request] --> HasSession{Valid session?}
-  HasSession -- No --> Guest[Role: guest]
-  HasSession -- Yes --> Email[Read email claim]
-  Email --> IsAdmin{Email in admin list?}
-  IsAdmin -- Yes --> Admin[Role: admin]
-  IsAdmin -- No --> IsBarista{Email in barista list?}
-  IsBarista -- Yes --> Barista[Role: barista]
-  IsBarista -- No --> User[Role: user]
-  Guest --> Guard[Handler role guard]
-  User --> Guard
-  Barista --> Guard
-  Admin --> Guard
-```
+![Role resolution Excalidraw diagram](diagrams/role-resolution.svg)
+
+[Edit Excalidraw source](diagrams/role-resolution.excalidraw)
 
 ## Role Access Matrix
 
-```mermaid
-flowchart LR
-  Guest[guest] --> Browse[Browse products]
-  Guest --> CreateOrder[Create order with email]
-  Guest --> Mine[List orders by supplied email]
+![Role access matrix Excalidraw diagram](diagrams/role-access-matrix.svg)
 
-  User[user] --> Browse
-  User --> CreateOwn[Create order with session email]
-  User --> MineOwn[List own orders]
-
-  Barista[barista] --> Queue[List all orders]
-  Barista --> Status[Ready, complete, cancel]
-
-  Admin[admin] --> Browse
-  Admin --> CreateOwn
-  Admin --> MineOwn
-  Admin --> Queue
-  Admin --> Status
-  Admin --> ProductCRUD[Product create, update, delete]
-  Admin --> DeleteOrder[Delete orders]
-```
+[Edit Excalidraw source](diagrams/role-access-matrix.excalidraw)
 
 ## Frontend Workflow
 
-```mermaid
-flowchart TD
-  Start[Open frontend] --> LoadMenu[Load /products]
-  LoadMenu --> Menu[Menu view]
-  Menu --> Cart[Add products to cart]
-  Cart --> Checkout[Submit /orders]
-  Checkout --> Orders[Orders view]
-  Orders --> Mine[Load /orders/mine]
+![Frontend workflow Excalidraw diagram](diagrams/frontend-workflow.svg)
 
-  Start --> AuthPanel[Login/signup panel]
-  AuthPanel --> Me[Fetch /auth/me]
-  Me --> RoleView{Role}
-  RoleView -- guest/user/admin --> Menu
-  RoleView -- barista/admin --> Staff[Barista queue]
-  Staff --> UpdateStatus[POST status action]
-```
+[Edit Excalidraw source](diagrams/frontend-workflow.excalidraw)
 
 ## Checkout Sequence
 
-```mermaid
-sequenceDiagram
-  participant UI as React frontend
-  participant Handler as Order handler
-  participant Service as Order service
-  participant DB as PostgreSQL
-  participant Outbox as Outbox row
+![Checkout sequence Excalidraw diagram](diagrams/checkout-sequence.svg)
 
-  UI->>Handler: POST /orders {customer_email, items}
-  Handler->>Handler: Use session email when signed in
-  Handler->>Service: CreateOrder(input)
-  Service->>DB: Lookup products by ID
-  Service->>Service: Calculate trusted prices and total
-  Service->>DB: Insert order and line items
-  Service->>DB: Insert order.created outbox event
-  DB-->>Service: Commit transaction
-  Service-->>Handler: Order model
-  Handler-->>UI: 201 OrderResponse
-```
+[Edit Excalidraw source](diagrams/checkout-sequence.excalidraw)
 
 ## Outbox And Events
 
-```mermaid
-sequenceDiagram
-  participant Order as Order service transaction
-  participant DB as PostgreSQL outbox_events
-  participant Dispatcher as Outbox dispatcher
-  participant MQ as RabbitMQ coffee.orders
-  participant Consumer as Notification service
+![Outbox and events Excalidraw diagram](diagrams/outbox-events.svg)
 
-  Order->>DB: Write order change and outbox event atomically
-  Dispatcher->>DB: Poll unpublished events
-  Dispatcher->>MQ: Publish with routing key
-  Dispatcher->>DB: Set published_at or record attempt error
-  MQ->>Consumer: Deliver order.created/status_updated
-  Consumer-->>MQ: Ack after successful handling
-```
+[Edit Excalidraw source](diagrams/outbox-events.excalidraw)
 
 Order event routing:
 
-```mermaid
-flowchart LR
-  Outbox[Order service outbox] --> Exchange[coffee.orders topic exchange]
-  Exchange -->|order.created| Queue[notification-service.orders]
-  Exchange -->|order.status_updated| Queue
-  Queue --> Consumer[Notification consumer]
-  Consumer --> Mail[Receipt/status email]
-```
+![Order event routing Excalidraw diagram](diagrams/order-event-routing.svg)
+
+[Edit Excalidraw source](diagrams/order-event-routing.excalidraw)
 
 ## Notification Flow
 
-```mermaid
-flowchart TD
-  Event[Order event] --> Known{Known event type?}
-  Known -- No --> AckUnknown[Ack and ignore]
-  Known -- Yes --> Duplicate{Event already seen?}
-  Duplicate -- Yes --> AckDuplicate[Ack duplicate]
-  Duplicate -- No --> Format[Format customer email]
-  Format --> Send[Send through SMTP or log sender]
-  Send --> Success{Send succeeded?}
-  Success -- Yes --> Remember[Remember event id]
-  Remember --> Ack[Ack message]
-  Success -- No --> Nack[Nack/retry path]
-```
+![Notification flow Excalidraw diagram](diagrams/notification-flow.svg)
+
+[Edit Excalidraw source](diagrams/notification-flow.excalidraw)
 
 ## Order State Machine
 
-```mermaid
-stateDiagram-v2
-  [*] --> preparing
-  preparing --> ready: /orders/:id/ready
-  ready --> completed: /orders/:id/complete
-  preparing --> cancelled: /orders/:id/cancel
-  ready --> cancelled: /orders/:id/cancel
-  completed --> [*]
-  cancelled --> [*]
-```
+![Order state machine Excalidraw diagram](diagrams/order-state-machine.svg)
+
+[Edit Excalidraw source](diagrams/order-state-machine.excalidraw)
 
 ## Data Model
 
-```mermaid
-erDiagram
-  PRODUCTS {
-    uuid id PK
-    string name
-    string category
-    int64 price_in_kurus
-    string image_path
-    bool available
-  }
+![Data model Excalidraw diagram](diagrams/data-model.svg)
 
-  ORDERS {
-    uuid id PK
-    string customer_email
-    int64 total
-    string status
-    time created_at
-  }
-
-  LINE_ITEMS {
-    uuid id PK
-    uuid order_id FK
-    uuid product_id FK
-    int quantity
-    int64 price_in_kurus
-    string product_name
-  }
-
-  OUTBOX_EVENTS {
-    uuid id PK
-    string event_type
-    string aggregate_type
-    string aggregate_id
-    string routing_key
-    text payload
-    int attempts
-    text last_error
-    time occurred_at
-    time published_at
-    time created_at
-  }
-
-  PRODUCTS ||--o{ LINE_ITEMS : "selected by"
-  ORDERS ||--o{ LINE_ITEMS : "contains"
-  ORDERS ||--o{ OUTBOX_EVENTS : "emits facts for"
-```
+[Edit Excalidraw source](diagrams/data-model.excalidraw)
 
 SuperTokens also stores user and session metadata in PostgreSQL tables owned by the SuperTokens service. The application code treats those tables as provider-owned data.
 
 ## Future Target Shape
 
-```mermaid
-flowchart LR
-  Browser[Browser] --> Gateway[Future Go gateway]
-  Gateway -->|validate JWT with JWKS| Authentik[Authentik OIDC]
-  Gateway -->|X-User-Sub / X-User-Email| Order[Order service]
-  Gateway --> Product[Future product service]
-  Order --> OrderDB[(Order DB)]
-  Product --> ProductDB[(Product DB)]
-  Order --> MQ[(RabbitMQ)]
-  MQ --> Notify[Notification service]
-```
+![Future target shape Excalidraw diagram](diagrams/future-target-shape.svg)
+
+[Edit Excalidraw source](diagrams/future-target-shape.excalidraw)
 
 Future services should keep the same rule: events are facts, consumers are idempotent, and downstream services trust identity headers only from the gateway network path.

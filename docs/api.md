@@ -134,14 +134,9 @@ Order response:
 
 Status transitions:
 
-```mermaid
-stateDiagram-v2
-  [*] --> preparing
-  preparing --> ready
-  ready --> completed
-  preparing --> cancelled
-  ready --> cancelled
-```
+![Order status transitions Excalidraw diagram](diagrams/api-status-transitions.svg)
+
+[Edit Excalidraw source](diagrams/api-status-transitions.excalidraw)
 
 ## Error Shape
 

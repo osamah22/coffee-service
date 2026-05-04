@@ -4,14 +4,9 @@ Order events are facts emitted by the order-service through the transactional ou
 
 ## Transport
 
-```mermaid
-flowchart LR
-  OrderDB[(order-service DB)] --> Outbox[outbox_events]
-  Outbox --> Dispatcher[Outbox dispatcher]
-  Dispatcher --> Exchange[(RabbitMQ topic exchange: coffee.orders)]
-  Exchange --> Queue[notification-service.orders]
-  Queue --> Consumer[Notification consumer]
-```
+![Event transport Excalidraw diagram](diagrams/event-transport.svg)
+
+[Edit Excalidraw source](diagrams/event-transport.excalidraw)
 
 | Setting | Value |
 | --- | --- |
@@ -89,21 +84,8 @@ Published after a valid order status transition is committed.
 
 ## Outbox Lifecycle
 
-```mermaid
-sequenceDiagram
-  participant Service as Order service
-  participant DB as PostgreSQL
-  participant Worker as Outbox dispatcher
-  participant MQ as RabbitMQ
+![Outbox lifecycle Excalidraw diagram](diagrams/outbox-lifecycle.svg)
 
-  Service->>DB: Begin transaction
-  Service->>DB: Write order/status change
-  Service->>DB: Insert outbox event
-  Service->>DB: Commit
-  Worker->>DB: Load unpublished outbox rows
-  Worker->>MQ: Publish with event type and event ID
-  MQ-->>Worker: Publish accepted
-  Worker->>DB: Mark published_at
-```
+[Edit Excalidraw source](diagrams/outbox-lifecycle.excalidraw)
 
 The dispatcher can safely retry unpublished rows. Consumers should still handle duplicate delivery because RabbitMQ delivery is at-least-once.
