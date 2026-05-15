@@ -57,6 +57,56 @@ See [architecture.md](architecture.md) for the ER diagrams. The runtime PostgreS
 - `users` and `outbox_events` owned by `auth-service`
 - `products`, `orders`, `line_items`, and order outbox rows owned by `order-service`
 
+## Diagram Pack
+
+### Auth And Access
+
+![Auth and role sequence Excalidraw diagram](diagrams/auth-role-sequence.svg)
+
+[Edit Excalidraw source](diagrams/auth-role-sequence.excalidraw)
+
+![Role resolution Excalidraw diagram](diagrams/role-resolution.svg)
+
+[Edit Excalidraw source](diagrams/role-resolution.excalidraw)
+
+![Role access matrix Excalidraw diagram](diagrams/role-access-matrix.svg)
+
+[Edit Excalidraw source](diagrams/role-access-matrix.excalidraw)
+
+### Frontend And Checkout
+
+![Frontend workflow Excalidraw diagram](diagrams/frontend-workflow.svg)
+
+[Edit Excalidraw source](diagrams/frontend-workflow.excalidraw)
+
+![Checkout sequence Excalidraw diagram](diagrams/checkout-sequence.svg)
+
+[Edit Excalidraw source](diagrams/checkout-sequence.excalidraw)
+
+### Events And State
+
+![Outbox and events Excalidraw diagram](diagrams/outbox-events.svg)
+
+[Edit Excalidraw source](diagrams/outbox-events.excalidraw)
+
+![Order event routing Excalidraw diagram](diagrams/order-event-routing.svg)
+
+[Edit Excalidraw source](diagrams/order-event-routing.excalidraw)
+
+![Order state machine Excalidraw diagram](diagrams/order-state-machine.svg)
+
+[Edit Excalidraw source](diagrams/order-state-machine.excalidraw)
+
+![Data model Excalidraw diagram](diagrams/data-model.svg)
+
+[Edit Excalidraw source](diagrams/data-model.excalidraw)
+
+### Future Split
+
+![Future target shape Excalidraw diagram](diagrams/future-target-shape.svg)
+
+[Edit Excalidraw source](diagrams/future-target-shape.excalidraw)
+
 ## Reset Local Data
 
 ```bash

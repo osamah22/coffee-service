@@ -11,6 +11,10 @@ Events are facts emitted through transactional outboxes. They are intentionally 
 
 Both exchanges are durable topic exchanges. Notification-service binds one durable queue to the keys it cares about.
 
+![Event transport Excalidraw diagram](diagrams/event-transport.svg)
+
+[Edit Excalidraw source](diagrams/event-transport.excalidraw)
+
 ## Rules
 
 - Events describe completed facts, not commands.
@@ -83,6 +87,14 @@ Published after a valid order status transition is committed.
 [Edit Excalidraw source](diagrams/outbox-lifecycle.excalidraw)
 
 The dispatcher can safely retry unpublished rows. Consumers should still handle duplicate delivery because RabbitMQ delivery is at-least-once.
+
+## Notification Handling
+
+![Notification flow Excalidraw diagram](diagrams/notification-flow.svg)
+
+[Edit Excalidraw source](diagrams/notification-flow.excalidraw)
+
+`notification-service` currently keeps processed event IDs in memory for duplicate suppression during a process lifetime. Delivery is still treated as at-least-once across restarts and reconnects.
 
 ## `password_reset.requested`
 

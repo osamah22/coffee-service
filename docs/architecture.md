@@ -2,6 +2,18 @@
 
 Coffee Service is a compact service-oriented demo with a frontend, two HTTP APIs, RabbitMQ, and an event-only notification worker.
 
+## System Views
+
+### Current Runtime
+
+![Coffee Service system context Excalidraw diagram](diagrams/system-context.svg)
+
+[Edit Excalidraw source](diagrams/system-context.excalidraw)
+
+![Runtime system Excalidraw diagram](diagrams/runtime-system.svg)
+
+[Edit Excalidraw source](diagrams/runtime-system.excalidraw)
+
 ## Runtime Containers
 
 | Container | Purpose |
@@ -26,6 +38,14 @@ Shared packages remain intentionally small:
 - `shared/events`: event names and payload contracts.
 - `shared/rabbitmq`: AMQP helpers.
 
+`order-service` validates bearer tokens locally through `shared/auth`. It does not make a runtime HTTP call back to `auth-service` for each request.
+
+## Component Ownership
+
+![Service ownership Excalidraw diagram](diagrams/service-ownership.svg)
+
+[Edit Excalidraw source](diagrams/service-ownership.excalidraw)
+
 ## Auth And Roles
 
 The frontend logs in through `auth-service`:
@@ -43,6 +63,12 @@ The auth API returns a JWT. Order-service trusts that token and enforces route a
 - `barista`: menu and queue/status actions.
 - `admin`: both user and barista capabilities.
 
+## Checkout Flow
+
+![Checkout sequence Excalidraw diagram](diagrams/architecture-checkout-sequence.svg)
+
+[Edit Excalidraw source](diagrams/architecture-checkout-sequence.excalidraw)
+
 ## Events
 
 RabbitMQ carries facts between services:
@@ -52,83 +78,22 @@ RabbitMQ carries facts between services:
 
 Both producer services use the transactional outbox pattern so database state and publish intent are recorded atomically.
 
+## Future Target
+
+![Future target shape Excalidraw diagram](diagrams/future-target-shape.svg)
+
+[Edit Excalidraw source](diagrams/future-target-shape.excalidraw)
+
 ## Database Diagrams
 
 ### Auth Service Schema
 
-```mermaid
-erDiagram
-  USERS {
-    uuid id PK
-    string email UK
-    string password_hash
-    string role
-    timestamp created_at
-    timestamp updated_at
-  }
-
-  AUTH_OUTBOX_EVENTS {
-    uuid id PK
-    string event_type
-    string aggregate_type
-    string aggregate_id
-    string routing_key
-    text payload
-    int attempts
-    text last_error
-    timestamp occurred_at
-    timestamp published_at
-    timestamp created_at
-  }
-
-  USERS ||--o{ AUTH_OUTBOX_EVENTS : emits
-```
+- `users`: identity, password hash, and role ownership.
+- `outbox_events`: durable auth facts such as `password_reset.requested`.
+- Both are written by `auth-service` only, even though they live in the shared local PostgreSQL instance.
 
 ### Order Service Schema
 
-```mermaid
-erDiagram
-  PRODUCTS {
-    uuid id PK
-    string name
-    string category
-    int64 price_in_kurus
-    string image_path
-    bool available
-  }
+![Data model Excalidraw diagram](diagrams/data-model.svg)
 
-  ORDERS {
-    uuid id PK
-    string customer_email
-    int64 total
-    string status
-    timestamp created_at
-    timestamp updated_at
-  }
-
-  LINE_ITEMS {
-    uuid id PK
-    uuid order_id FK
-    uuid product_id
-    string product_name
-    int quantity
-    int64 price_in_kurus
-  }
-
-  ORDER_OUTBOX_EVENTS {
-    uuid id PK
-    string event_type
-    string aggregate_type
-    string aggregate_id
-    string routing_key
-    text payload
-    int attempts
-    text last_error
-    timestamp occurred_at
-    timestamp published_at
-    timestamp created_at
-  }
-
-  ORDERS ||--o{ LINE_ITEMS : contains
-  ORDERS ||--o{ ORDER_OUTBOX_EVENTS : emits
-```
+[Edit Excalidraw source](diagrams/data-model.excalidraw)

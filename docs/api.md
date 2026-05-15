@@ -72,7 +72,7 @@ Password reset request:
 | `GET` | `/ping` | public | Order health check. |
 | `GET` | `/products` | user, barista, admin | Lists all menu products. |
 | `POST` | `/orders` | user, admin | Creates an order and enqueues `order.created`. |
-| `GET` | `/orders/mine?email=:email` | user, admin | Lists orders for the authenticated user email. |
+| `GET` | `/orders/mine` | user, admin | Lists orders for the JWT email. `?email=` is accepted locally, but authenticated claims win when present. |
 | `GET` | `/staff/orders` | barista, admin | Lists all orders for the staff queue. |
 | `POST` | `/staff/orders/:id/ready` | barista, admin | Moves `preparing` to `ready` and enqueues `order.status_updated`. |
 | `POST` | `/staff/orders/:id/complete` | barista, admin | Moves `ready` to `completed` and enqueues `order.status_updated`. |
@@ -109,7 +109,7 @@ Create request:
 }
 ```
 
-Prices and product names are loaded server-side from stored product records. The client sends only product IDs and quantities.
+`customer_email` may be omitted when the bearer token already carries the user email. Prices and product names are loaded server-side from stored product records, so the client sends only product IDs and quantities.
 
 Order response:
 
@@ -138,6 +138,10 @@ Valid status transitions:
 - `preparing -> cancelled`
 - `ready -> cancelled`
 
+![Order status transitions Excalidraw diagram](diagrams/api-status-transitions.svg)
+
+[Edit Excalidraw source](diagrams/api-status-transitions.excalidraw)
+
 ## Errors
 
 Most errors return:
@@ -153,7 +157,7 @@ Common status codes:
 | Status | Meaning |
 | --- | --- |
 | `400` | Invalid request, validation error, missing customer email, invalid transition, or unknown product. |
-| `401` | Missing/invalid Basic credentials or missing/invalid JWT. |
+| `401` | Missing/invalid email-password login result or missing/invalid JWT. |
 | `403` | Authenticated role is not allowed. |
 | `404` | Resource not found. |
 | `500` | Unexpected service/database failure. |

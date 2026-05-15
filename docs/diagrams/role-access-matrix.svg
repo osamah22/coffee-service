@@ -1,34 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1050" height="620" viewBox="0 0 1050 620" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="540" viewBox="0 0 980 540" role="img">
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L0,6 L9,3 z" fill="#1f2937"/>
     </marker>
   </defs>
   <rect width="100%" height="100%" fill="#fffdf7"/>
-  <line x1="170" y1="82.73584905660377" x2="300" y2="77.83018867924528" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
-<line x1="170" y1="83.73684210526316" x2="510" y2="76.57894736842105" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
-<line x1="170" y1="84.13669064748201" x2="720" y2="76.22302158273381" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
-<line x1="163" y1="195" x2="313.1666666666667" y2="110" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
-<line x1="170" y1="206.05263157894737" x2="510" y2="98.68421052631578" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
-<line x1="170" y1="212.0503597122302" x2="720" y2="93.34532374100719" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
-<line x1="170" y1="366.60377358490564" x2="300" y2="359.24528301886795" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
-<line x1="170" y1="368.1443298969072" x2="510" y2="357.62886597938143" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
-<line x1="128.27586206896552" y1="480" x2="353.67816091954023" y2="110" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
-<line x1="142.75862068965517" y1="480" x2="546.7816091954023" y2="110" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
-<line x1="157.9310344827586" y1="480" x2="749.0804597701149" y2="110" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
-<line x1="161.29032258064515" y1="480" x2="315.1612903225806" y2="390" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
-<line x1="170" y1="490.82474226804123" x2="510" y2="382.16494845360825" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
-<line x1="170" y1="508.6861313868613" x2="720" y2="496.64233576642334" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
-<line x1="170" y1="508.94117647058823" x2="900" y2="496.05882352941177" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
-<rect x="50" y="55" width="120" height="60" rx="8" fill="#f3f4f6" stroke="#1f2937" stroke-width="2"/><text x="110" y="85" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="110" dy="0">customer</tspan></text>
-<rect x="50" y="195" width="120" height="60" rx="8" fill="#dcfce7" stroke="#1f2937" stroke-width="2"/><text x="110" y="225" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="110" dy="0">admin</tspan></text>
-<rect x="50" y="340" width="120" height="60" rx="8" fill="#ffedd5" stroke="#1f2937" stroke-width="2"/><text x="110" y="370" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="110" dy="0">staff</tspan></text>
-<rect x="50" y="480" width="120" height="60" rx="8" fill="#ede9fe" stroke="#1f2937" stroke-width="2"/><text x="110" y="510" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="110" dy="0">admin</tspan></text>
-<rect x="300" y="40" width="150" height="70" rx="8" fill="#dbeafe" stroke="#1f2937" stroke-width="2"/><text x="375" y="64.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="375" dy="0">Browse</tspan><tspan x="375" dy="21.599999999999998">products</tspan></text>
-<rect x="510" y="40" width="150" height="70" rx="8" fill="#dbeafe" stroke="#1f2937" stroke-width="2"/><text x="585" y="64.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="585" dy="0">Create</tspan><tspan x="585" dy="21.599999999999998">order</tspan></text>
-<rect x="720" y="40" width="170" height="70" rx="8" fill="#dbeafe" stroke="#1f2937" stroke-width="2"/><text x="805" y="64.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="805" dy="0">List own /</tspan><tspan x="805" dy="21.599999999999998">email orders</tspan></text>
-<rect x="300" y="320" width="150" height="70" rx="8" fill="#fef3c7" stroke="#1f2937" stroke-width="2"/><text x="375" y="344.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="375" dy="0">List all</tspan><tspan x="375" dy="21.599999999999998">orders</tspan></text>
-<rect x="510" y="320" width="170" height="70" rx="8" fill="#fef3c7" stroke="#1f2937" stroke-width="2"/><text x="595" y="344.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="595" dy="0">Ready, complete,</tspan><tspan x="595" dy="21.599999999999998">cancel</tspan></text>
-<rect x="720" y="460" width="150" height="70" rx="8" fill="#fee2e2" stroke="#1f2937" stroke-width="2"/><text x="795" y="484.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="795" dy="0">Browse</tspan><tspan x="795" dy="21.599999999999998">products</tspan></text>
-<rect x="900" y="460" width="120" height="70" rx="8" fill="#fee2e2" stroke="#1f2937" stroke-width="2"/><text x="960" y="484.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="960" dy="0">Staff</tspan><tspan x="960" dy="21.599999999999998">queue</tspan></text>
+  <line x1="180" y1="95.47169811320755" x2="310" y2="85.66037735849056" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="180" y1="97.47368421052632" x2="520" y2="83.15789473684211" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="180" y1="98.26086956521739" x2="730" y2="82.31884057971014" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="162.97297297297297" y1="235" x2="334.86486486486484" y2="115" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="180" y1="293.3018867924528" x2="310.8" y2="355" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="180" y1="280.4639175257732" x2="520" y2="368.09278350515467" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="142.71428571428572" y1="400" x2="358.5" y2="115" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="160.71428571428572" y1="400" x2="547.5" y2="115" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="179.14285714285714" y1="400" x2="741" y2="115" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="180" y1="420.9433962264151" x2="310" y2="401.3207547169811" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="180" y1="425.0515463917526" x2="520" y2="397.0103092783505" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="60" y="70" width="120" height="60" rx="8" fill="#dcfce7" stroke="#1f2937" stroke-width="2"/><text x="120" y="100" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="120" dy="0">user</tspan></text>
+<rect x="60" y="235" width="120" height="60" rx="8" fill="#ffedd5" stroke="#1f2937" stroke-width="2"/><text x="120" y="265" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="120" dy="0">barista</tspan></text>
+<rect x="60" y="400" width="120" height="60" rx="8" fill="#ede9fe" stroke="#1f2937" stroke-width="2"/><text x="120" y="430" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="120" dy="0">admin</tspan></text>
+<rect x="310" y="45" width="150" height="70" rx="8" fill="#dbeafe" stroke="#1f2937" stroke-width="2"/><text x="385" y="69.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="385" dy="0">GET</tspan><tspan x="385" dy="21.599999999999998">/products</tspan></text>
+<rect x="520" y="45" width="150" height="70" rx="8" fill="#dbeafe" stroke="#1f2937" stroke-width="2"/><text x="595" y="69.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="595" dy="0">POST</tspan><tspan x="595" dy="21.599999999999998">/orders</tspan></text>
+<rect x="730" y="45" width="160" height="70" rx="8" fill="#dbeafe" stroke="#1f2937" stroke-width="2"/><text x="810" y="69.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="810" dy="0">GET</tspan><tspan x="810" dy="21.599999999999998">/orders/mine</tspan></text>
+<rect x="310" y="355" width="150" height="70" rx="8" fill="#fef3c7" stroke="#1f2937" stroke-width="2"/><text x="385" y="379.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="385" dy="0">GET</tspan><tspan x="385" dy="21.599999999999998">/staff/orders</tspan></text>
+<rect x="520" y="355" width="170" height="70" rx="8" fill="#fef3c7" stroke="#1f2937" stroke-width="2"/><text x="605" y="379.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="605" dy="0">POST staff</tspan><tspan x="605" dy="21.599999999999998">status actions</tspan></text>
 </svg>
