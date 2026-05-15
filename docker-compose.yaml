@@ -1,6 +1,25 @@
 name: coffee-service
 
 services:
+  traefik:
+    image: traefik:v3.1
+    container_name: coffee-service_gateway
+    command:
+      - --entrypoints.web.address=:80
+      - --providers.file.filename=/etc/traefik/dynamic/routes.yaml
+      - --providers.file.watch=true
+    ports:
+      - "80:80"
+    volumes:
+      - ./traefik/dynamic/routes.yaml:/etc/traefik/dynamic/routes.yaml:ro
+    depends_on:
+      frontend:
+        condition: service_started
+      order-service:
+        condition: service_started
+      auth-service:
+        condition: service_started
+
   postgres:
     image: postgres:16
     container_name: order-service_postgres
@@ -8,7 +27,8 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: coffee
-    network_mode: host
+    ports:
+      - "5432:5432"
     volumes:
       - order_service_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -20,7 +40,9 @@ services:
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: order-service_rabbitmq
-    network_mode: host
+    ports:
+      - "5672:5672"
+      - "15672:15672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 5s
@@ -30,7 +52,9 @@ services:
   mailhog:
     image: mailhog/mailhog:v1.0.1
     container_name: order-service_mailhog
-    network_mode: host
+    ports:
+      - "1025:1025"
+      - "8025:8025"
 
   order-service:
     build:
@@ -40,20 +64,21 @@ services:
     container_name: order-service_api
     environment:
       PORT: "8080"
-      DB_URL: postgres://postgres:postgres@localhost:5432/coffee?sslmode=disable
-      API_DOMAIN: http://localhost:8080
-      AUTH_API_DOMAIN: http://localhost:8081
+      DB_URL: postgres://postgres:postgres@postgres:5432/coffee?sslmode=disable
+      API_DOMAIN: http://localhost
+      AUTH_API_DOMAIN: http://localhost
       WEBSITE_DOMAIN: http://localhost
       JWT_SECRET: coffee-service-local-jwt-secret
       JWT_ISSUER: coffee-service
       JWT_TTL_MINUTES: "480"
-      RABBITMQ_URL: amqp://guest:guest@127.0.0.1:5672/
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    network_mode: host
+    ports:
+      - "8080:8080"
 
   auth-service:
     build:
@@ -63,21 +88,22 @@ services:
     container_name: coffee-service_auth
     environment:
       PORT: "8081"
-      AUTH_DB_URL: postgres://postgres:postgres@localhost:5432/coffee?sslmode=disable
-      API_DOMAIN: http://localhost:8080
-      AUTH_API_DOMAIN: http://localhost:8081
+      AUTH_DB_URL: postgres://postgres:postgres@postgres:5432/coffee?sslmode=disable
+      API_DOMAIN: http://localhost
+      AUTH_API_DOMAIN: http://localhost
       WEBSITE_DOMAIN: http://localhost
       JWT_SECRET: coffee-service-local-jwt-secret
       JWT_ISSUER: coffee-service
       JWT_TTL_MINUTES: "480"
       AUTH_DEMO_USERS: customer@example.com:customer123:user,barista@coffee.local:barista123:barista,admin@coffee.local:admin123:admin
-      RABBITMQ_URL: amqp://guest:guest@127.0.0.1:5672/
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    network_mode: host
+    ports:
+      - "8081:8081"
 
   notification-service:
     build:
@@ -86,8 +112,8 @@ services:
       network: host
     container_name: order-service_notifications
     environment:
-      RABBITMQ_URL: amqp://guest:guest@127.0.0.1:5672/
-      SMTP_HOST: localhost
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      SMTP_HOST: mailhog
       SMTP_PORT: "1025"
       SMTP_FROM: Coffee Service <orders@coffee.local>
       NOTIFICATION_FALLBACK_EMAIL: dev@coffee.local
@@ -96,7 +122,6 @@ services:
         condition: service_healthy
       mailhog:
         condition: service_started
-    network_mode: host
 
   frontend:
     build:
@@ -104,15 +129,14 @@ services:
       dockerfile: frontend/Dockerfile
       network: host
       args:
-        VITE_API_URL: http://localhost:8080
-        VITE_AUTH_API_URL: http://localhost:8081
+        VITE_API_URL: http://localhost/api
+        VITE_AUTH_API_URL: http://localhost
     container_name: order-service_frontend
     depends_on:
       order-service:
         condition: service_started
       auth-service:
         condition: service_started
-    network_mode: host
 
 volumes:
   order_service_postgres_data:

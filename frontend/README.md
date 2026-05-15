@@ -31,7 +31,7 @@ Build for production:
 npm run build
 ```
 
-The API base URLs are controlled by `VITE_API_URL` and `VITE_AUTH_API_URL`. Docker Compose builds the frontend with `http://localhost:8080` for orders and `http://localhost:8081` for auth.
+The API base URLs are controlled by `VITE_API_URL` and `VITE_AUTH_API_URL`. Docker Compose builds the frontend against the Traefik gateway with `http://localhost/api` for orders and `http://localhost` for auth.
 
 Default demo accounts:
 

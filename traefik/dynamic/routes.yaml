@@ -7,11 +7,18 @@ http:
       priority: 1
       service: frontend
 
+    auth-service:
+      entryPoints:
+        - web
+      rule: "Host(`localhost`) && PathPrefix(`/auth`)"
+      priority: 100
+      service: auth-service
+
     order-service:
       entryPoints:
         - web
       rule: "Host(`localhost`) && PathPrefix(`/api`)"
-      priority: 100
+      priority: 90
       middlewares:
         - api-strip
       service: order-service
@@ -32,3 +39,8 @@ http:
       loadBalancer:
         servers:
           - url: "http://order-service:8080"
+
+    auth-service:
+      loadBalancer:
+        servers:
+          - url: "http://auth-service:8081"

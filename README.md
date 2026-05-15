@@ -1,6 +1,6 @@
 # Coffee Service
 
-Coffee Service is a portfolio-style coffee ordering demo with a React frontend, dedicated Go auth and order APIs, RabbitMQ event delivery, PostgreSQL persistence, and a Go notification worker.
+Coffee Service is a portfolio-style coffee ordering demo with a React frontend, a Traefik API gateway, dedicated Go auth and order APIs, RabbitMQ event delivery, PostgreSQL persistence, and a Go notification worker.
 
 The application now has **3 application services**:
 
@@ -25,8 +25,8 @@ The application now has **3 application services**:
 
 ```mermaid
 flowchart LR
-  Browser[React frontend] -->|POST /auth/login| AuthAPI[auth-service :8081]
-  Browser -->|Bearer JWT| OrderAPI[order-service :8080]
+  Browser[React frontend via Traefik :80] -->|POST /auth/login| AuthAPI[auth-service :8081]
+  Browser -->|Bearer JWT via /api| OrderAPI[order-service :8080]
   AuthAPI -->|users + outbox| PG[(PostgreSQL)]
   OrderAPI -->|products + orders + outbox| PG
   AuthAPI -->|coffee.auth| RMQ[(RabbitMQ)]
@@ -43,13 +43,16 @@ docker compose up --build
 
 Default local endpoints:
 
-| Component | URL |
-| --- | --- |
-| Frontend | `http://localhost` |
-| Auth API | `http://localhost:8081` |
-| Order API | `http://localhost:8080` |
-| RabbitMQ management | `http://localhost:15672` |
-| MailHog UI | `http://localhost:8025` |
+| Service | Public URL | Direct container port | Notes |
+| --- | --- | --- | --- |
+| `traefik` | `http://localhost` | `:80` | Main gateway entrypoint for the app. |
+| `frontend` | `http://localhost` | not published directly | Served through Traefik. |
+| `auth-service` | `http://localhost/auth/...` | `http://localhost:8081` | Login, `/auth/me`, password reset request creation. |
+| `order-service` | `http://localhost/api/...` | `http://localhost:8080` | Products, orders, and barista workflow. |
+| `notification-service` | none | none | Worker only; consumes RabbitMQ events and sends email. |
+| `postgres` | none | `localhost:5432` | Runtime database for auth and order tables. |
+| `rabbitmq` | `http://localhost:15672` | `localhost:5672` | AMQP broker plus management UI. |
+| `mailhog` | `http://localhost:8025` | `localhost:1025` | SMTP sink plus inbox UI. |
 
 Reset local data:
 
@@ -76,12 +79,12 @@ docker compose down -v
 
 ## API Overview
 
-The project has **2 HTTP APIs**:
+The project has **2 HTTP APIs** behind Traefik:
 
 | Service | Base URL | Notes |
 | --- | --- | --- |
-| `auth-service` | `http://localhost:8081` | Login, token introspection, password reset request creation. |
-| `order-service` | `http://localhost:8080` | Products, orders, and barista workflow. |
+| `auth-service` | `http://localhost/auth` | Gateway route. Direct container access stays available at `http://localhost:8081`. |
+| `order-service` | `http://localhost/api` | Gateway route. Direct container access stays available at `http://localhost:8080`. |
 
 ## Events
 

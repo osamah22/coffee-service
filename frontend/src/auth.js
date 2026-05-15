@@ -1,5 +1,5 @@
-const apiUrl = stripTrailingSlash(import.meta.env.VITE_API_URL || "http://localhost:8080");
-const authApiUrl = stripTrailingSlash(import.meta.env.VITE_AUTH_API_URL || "http://localhost:8081");
+const apiUrl = stripTrailingSlash(import.meta.env.VITE_API_URL || "http://localhost/api");
+const authApiUrl = stripTrailingSlash(import.meta.env.VITE_AUTH_API_URL || "http://localhost");
 
 const storageKeys = {
   session: "coffee.auth.session",
