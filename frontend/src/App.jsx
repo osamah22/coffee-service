@@ -237,137 +237,135 @@ function Console() {
           <span>{isAuthenticated ? `${user.email} / ${user.role}` : "Use one of the demo accounts to start a session"}</span>
         </div>
         <div className="topbar-actions" aria-label="Primary actions">
-          <div className="task-tabs" aria-label="Customer tasks">
+          <div className="task-tabs" aria-label="Navigation">
             <button type="button" className={view === "menu" ? "active" : ""} onClick={() => setView("menu")}>
-              Order
+              Menu
             </button>
-            {canOrder && !isStaff && (
+            {canOrder && (
               <button type="button" className={view === "orders" ? "active" : ""} onClick={() => {
                 setView("orders");
                 loadOrders();
               }}>
-                My Orders
+                Orders
               </button>
             )}
-          </div>
-          {canManageOrders && (
-            <div className="task-tabs staff-tabs" aria-label="Staff tasks">
+            {canManageOrders && (
               <button type="button" className={view === "admin" ? "active" : ""} onClick={() => {
                 setView("admin");
                 loadAdminOrders();
               }}>
-                Staff Queue
+                Queue
               </button>
-            </div>
-          )}
+            )}
+          </div>
           <div className="utility-actions">
             <button type="button" className="icon-button" onClick={() => setTheme(toggleTheme(theme))}>
-              {theme === "dark" ? "SUN" : "MOON"}
+              {theme === "dark" ? "Sun" : "Moon"}
             </button>
-            <button type="button" onClick={handleLogout}>Logout</button>
+            {isAuthenticated && <button type="button" onClick={handleLogout}>Logout</button>}
           </div>
         </div>
       </header>
 
       <section className="status-strip" aria-label="System status">
         <span>{status}</span>
-        <span>{user.role.toUpperCase()}</span>
-        <span>{cartCount} IN CART</span>
-        <span>{canManageOrders ? `${activeOrderCount(adminStats)} ACTIVE` : `${orders.length} PREVIOUS`}</span>
+        <span>{isAuthenticated ? user.role.toUpperCase() : "SIGNED OUT"}</span>
       </section>
 
-      <TaskSummary
-        view={view}
-        cartTotal={cartTotal}
-        cartCount={cartCount}
-        productCount={products.length}
-        orderStats={orderStats}
-        adminStats={adminStats}
-        canManageOrders={canManageOrders}
-      />
-
-      {canManageOrders && view === "admin" ? (
-        <OperationsDashboard
-          orders={adminOrders}
-          loading={adminLoading}
-          stats={adminStats}
-          role={user.role}
-          onRefresh={loadAdminOrders}
-          onUpdateStatus={updateAdminOrder}
-        />
-      ) : view === "orders" ? (
-          <OrdersPanel
-            orders={orders}
-            loading={ordersLoading}
-            stats={orderStats}
-            customerEmail={customerEmail}
-            emailLocked={user.role === "customer"}
-            onEmailChange={updateCustomerEmail}
-            onRefresh={loadOrders}
+      {!isAuthenticated ? (
+        <section className="auth-shell">
+          <AuthPanel
+            authError={authError}
+            isAuthenticated={isAuthenticated}
+            authForm={authForm}
+            onChange={setAuthForm}
+            onLogin={handleLogin}
+            onLogout={handleLogout}
+            user={user}
           />
+        </section>
       ) : (
-        <section className="order-workspace" aria-label="Order workspace">
-          <div className="menu-panel">
-            <div className="menu-head">
-              <div>
-                <p className="eyebrow">MENU</p>
-                <h2>Pick Drinks</h2>
-              </div>
-              <div className="category-tabs" aria-label="Menu filter">
-                {["all", "hot", "cold"].map((category) => (
-                  <button
-                    key={category}
-                    type="button"
-                    className={menuFilter === category ? "active" : ""}
-                    onClick={() => setMenuFilter(category)}
-                  >
-                    {category}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="product-grid">
-              {filteredProducts.map((product) => (
-                <article key={product.id} className="product-card">
-                  <div className="product-image">
-                    <PixelCoffee name={product.name} />
-                  </div>
-                  <div className="product-info">
-                    <p className="chip">{product.category}</p>
-                    <h2>{product.name}</h2>
-                    <p className="product-price">{formatPrice(product.price_in_kurus)}</p>
-                    {canOrder && <button type="button" onClick={() => addToCart(product)}>Add</button>}
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-          {canOrder && (
-            <CartPanel
-              items={cartItems}
-              total={cartTotal}
-              message={orderMessage}
+        <>
+          <TaskSummary
+            view={view}
+            cartTotal={cartTotal}
+            cartCount={cartCount}
+            productCount={products.length}
+            orderStats={orderStats}
+            adminStats={adminStats}
+            canManageOrders={canManageOrders}
+          />
+
+          {canManageOrders && view === "admin" ? (
+            <OperationsDashboard
+              orders={adminOrders}
+              loading={adminLoading}
+              role={user.role}
+              onRefresh={loadAdminOrders}
+              onUpdateStatus={updateAdminOrder}
+            />
+          ) : view === "orders" ? (
+            <OrdersPanel
+              orders={orders}
+              loading={ordersLoading}
               customerEmail={customerEmail}
               emailLocked={user.role === "user"}
               onEmailChange={updateCustomerEmail}
-              onQuantityChange={setCartQuantity}
-              onCheckout={placeOrder}
+              onRefresh={loadOrders}
             />
+          ) : (
+            <section className="order-workspace" aria-label="Order workspace">
+              <div className="menu-panel">
+                <div className="menu-head">
+                  <div>
+                    <p className="eyebrow">MENU</p>
+                    <h2>Pick Drinks</h2>
+                  </div>
+                  <div className="category-tabs" aria-label="Menu filter">
+                    {["all", "hot", "cold"].map((category) => (
+                      <button
+                        key={category}
+                        type="button"
+                        className={menuFilter === category ? "active" : ""}
+                        onClick={() => setMenuFilter(category)}
+                      >
+                        {category}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="product-grid">
+                  {filteredProducts.map((product) => (
+                    <article key={product.id} className="product-card">
+                      <div className="product-image">
+                        <PixelCoffee name={product.name} />
+                      </div>
+                      <div className="product-info">
+                        <p className="chip">{product.category}</p>
+                        <h2>{product.name}</h2>
+                        <p className="product-price">{formatPrice(product.price_in_kurus)}</p>
+                        {canOrder && <button type="button" onClick={() => addToCart(product)}>Add</button>}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+              {canOrder && (
+                <CartPanel
+                  items={cartItems}
+                  total={cartTotal}
+                  message={orderMessage}
+                  customerEmail={customerEmail}
+                  emailLocked={user.role === "user"}
+                  onEmailChange={updateCustomerEmail}
+                  onQuantityChange={setCartQuantity}
+                  onCheckout={placeOrder}
+                />
+              )}
+            </section>
           )}
-        </section>
+        </>
       )}
-
-      <section className="guest-panel">
-        <AuthPanel
-          authError={authError}
-          isAuthenticated={isAuthenticated}
-          authForm={authForm}
-          onChange={setAuthForm}
-          onLogin={handleLogin}
-          onLogout={handleLogout}
-          user={user}
-        />
-      </section>
     </main>
   );
 }
@@ -422,11 +420,17 @@ function AuthPanel({ authError, isAuthenticated, authForm, onChange, onLogin, on
   ];
 
   return (
-    <>
-      <span>DEMO CREDENTIALS / JWT SESSION</span>
-      <div className="auth-tabs">
-        <span>{isAuthenticated ? `Bearer token active for ${user.email}` : "No active bearer token"}</span>
-        <span>Role: {user.role}</span>
+    <section className="auth-panel" aria-label="Login">
+      <div className="panel-head">
+        <div>
+          <p className="eyebrow">SESSION</p>
+          <h2>{isAuthenticated ? "Active Session" : "Sign In"}</h2>
+        </div>
+        {isAuthenticated && <button type="button" onClick={onLogout}>Clear</button>}
+      </div>
+      <div className="auth-status">
+        <span>{isAuthenticated ? user.email : "Choose a demo account or enter credentials"}</span>
+        <span>{isAuthenticated ? user.role.toUpperCase() : "EMAIL + PASSWORD LOGIN"}</span>
       </div>
       <div className="task-tabs" aria-label="Demo credentials">
         {demoAccounts.map((account) => (
@@ -443,32 +447,33 @@ function AuthPanel({ authError, isAuthenticated, authForm, onChange, onLogin, on
           </button>
         ))}
       </div>
-      <label className="email-field">
-        <span>LOGIN EMAIL</span>
-        <input
-          type="email"
-          value={authForm.email}
-          onChange={(event) => onChange((current) => ({ ...current, email: event.target.value }))}
-          placeholder="customer@example.com"
-        />
-      </label>
-      <label className="email-field">
-        <span>LOGIN PASSWORD</span>
-        <input
-          type="password"
-          value={authForm.password}
-          onChange={(event) => onChange((current) => ({ ...current, password: event.target.value }))}
-          placeholder="customer123"
-        />
-      </label>
-      <div className="cart-actions">
+      <div className="auth-form-grid">
+        <label className="email-field">
+          <span>LOGIN EMAIL</span>
+          <input
+            type="email"
+            value={authForm.email}
+            onChange={(event) => onChange((current) => ({ ...current, email: event.target.value }))}
+            placeholder="customer@example.com"
+          />
+        </label>
+        <label className="email-field">
+          <span>LOGIN PASSWORD</span>
+          <input
+            type="password"
+            value={authForm.password}
+            onChange={(event) => onChange((current) => ({ ...current, password: event.target.value }))}
+            placeholder="customer123"
+          />
+        </label>
+      </div>
+      <div className="action-row">
         {authError && <p>{authError}</p>}
         <button type="button" onClick={() => onLogin()}>
           {isAuthenticated ? "REFRESH SESSION" : "LOGIN"}
         </button>
-        {isAuthenticated && <button type="button" onClick={onLogout}>CLEAR SESSION</button>}
       </div>
-    </>
+    </section>
   );
 }
 
@@ -529,22 +534,15 @@ function CartPanel({
   );
 }
 
-function OrdersPanel({ orders, loading, stats, customerEmail, emailLocked, onEmailChange, onRefresh }) {
+function OrdersPanel({ orders, loading, customerEmail, emailLocked, onEmailChange, onRefresh }) {
   return (
     <section className="orders-panel" aria-label="Orders">
-      <div className="orders-head">
+      <div className="panel-head">
         <div>
           <p className="eyebrow">PREVIOUS ORDERS</p>
           <h2>Order History</h2>
         </div>
         <button type="button" onClick={onRefresh}>{loading ? "SCANNING" : "REFRESH"}</button>
-      </div>
-
-      <div className="summary-grid">
-        <Metric label="Total orders" value={String(stats.count)} />
-        <Metric label="Preparing" value={String(stats.preparing)} />
-        <Metric label="Ready" value={String(stats.ready)} />
-        <Metric label="Total spend" value={formatPrice(stats.revenue)} />
       </div>
 
       <label className="email-field">
@@ -586,24 +584,17 @@ function OrdersPanel({ orders, loading, stats, customerEmail, emailLocked, onEma
   );
 }
 
-function OperationsDashboard({ orders, loading, stats, role, onRefresh, onUpdateStatus }) {
+function OperationsDashboard({ orders, loading, role, onRefresh, onUpdateStatus }) {
   const sortedOrders = useMemo(() => sortOperationalOrders(orders), [orders]);
 
   return (
     <section className="admin-panel" aria-label="Barista dashboard">
-      <div className="admin-hero">
+      <div className="panel-head">
         <div>
           <p className="eyebrow">{role === "admin" ? "ADMIN DASHBOARD" : "BARISTA DASHBOARD"}</p>
           <h2>Barista Queue</h2>
         </div>
         <button type="button" onClick={onRefresh}>{loading ? "SYNCING" : "SYNC"}</button>
-      </div>
-
-      <div className="summary-grid">
-        <Metric label="Preparing" value={String(stats.preparing)} />
-        <Metric label="Ready" value={String(stats.ready)} />
-        <Metric label="Completed" value={String(stats.completed)} />
-        <Metric label="Revenue" value={formatPrice(stats.revenue)} />
       </div>
 
       {orders.length === 0 ? (
@@ -708,10 +699,6 @@ function summarizeOrders(orderList) {
 
 function replaceOrder(orderList, order) {
   return orderList.map((item) => (item.id === order.id ? order : item));
-}
-
-function activeOrderCount(stats) {
-  return stats.preparing + stats.ready;
 }
 
 function sortOperationalOrders(orderList) {

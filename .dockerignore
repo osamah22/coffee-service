@@ -4,6 +4,8 @@
 !order-service/**
 !notification-service
 !notification-service/**
+!auth-service
+!auth-service/**
 !shared
 !shared/**
 !frontend
