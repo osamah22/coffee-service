@@ -17,7 +17,7 @@ type Config struct {
 
 func FromEnv() Config {
 	return Config{
-		RabbitMQURL:   envOrDefault("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
+		RabbitMQURL:   envOrDefault("RABBITMQ_URL", "amqp://guest:guest@127.0.0.1:5672/"),
 		SMTPHost:      os.Getenv("SMTP_HOST"),
 		SMTPPort:      envIntOrDefault("SMTP_PORT", 1025),
 		SMTPUsername:  os.Getenv("SMTP_USERNAME"),

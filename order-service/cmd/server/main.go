@@ -22,23 +22,21 @@ func main() {
 	port := envOrDefault("PORT", "8080")
 	db := setupDatabase()
 	authConfig := sharedauth.ConfigFromEnv()
-	if err := sharedauth.InitSuperTokens(authConfig); err != nil {
-		log.Fatal("supertokens setup failed:", err)
-	}
 
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
-	router.Use(sharedauth.CORS(authConfig), sharedauth.SuperTokens())
+	router.Use(sharedauth.CORS(authConfig))
 	router.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
 	})
 
 	authMiddleware := sharedauth.NewMiddleware(authConfig)
+	authHandlers := sharedauth.NewHandlerSet(authConfig)
 
 	addRoutes(
 		router,
 		authMiddleware,
-		sharedauth.NewHandlerSet(authConfig),
+		authHandlers,
 		handlers.NewProductHandler(services.NewProductService(db)),
 		handlers.NewOrderHandler(services.NewOrderService(db), services.NewProductService(db)),
 	)
@@ -71,7 +69,7 @@ func setupDatabase() *gorm.DB {
 }
 
 func startOutboxDispatcher(db *gorm.DB) {
-	rabbitURL := envOrDefault("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
+	rabbitURL := envOrDefault("RABBITMQ_URL", "amqp://guest:guest@127.0.0.1:5672/")
 	dispatcher := services.NewOutboxDispatcher(db, rabbitURL, 2*time.Second, 10)
 	go dispatcher.Run(context.Background())
 }

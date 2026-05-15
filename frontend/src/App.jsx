@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { apiFetch, fetchCurrentUser, getCachedUser, login, logout, signup } from "./auth";
+import { apiFetch, getCachedSession, getCachedUser, login, logout } from "./auth";
 
 function App() {
   return <Console />;
@@ -7,14 +7,12 @@ function App() {
 
 function Console() {
   const [theme, setTheme] = useState(() => localStorage.getItem("coffee.theme") || "dark");
+  const [session, setSession] = useState(() => getCachedSession());
   const [user, setUser] = useState(() => getCachedUser());
   const [view, setView] = useState("menu");
   const [products, setProducts] = useState([]);
-  const [status, setStatus] = useState("READY");
+  const [status, setStatus] = useState(() => (getCachedSession().token ? "READY" : "LOGIN REQUIRED"));
   const [menuFilter, setMenuFilter] = useState("all");
-  const [authMode, setAuthMode] = useState("login");
-  const [authOpen, setAuthOpen] = useState(false);
-  const [authError, setAuthError] = useState("");
   const [cart, setCart] = useState({});
   const [customerEmail, setCustomerEmail] = useState(() => localStorage.getItem("coffee.customer.email") || "");
   const [orders, setOrders] = useState([]);
@@ -22,6 +20,8 @@ function Console() {
   const [adminOrders, setAdminOrders] = useState([]);
   const [adminLoading, setAdminLoading] = useState(false);
   const [orderMessage, setOrderMessage] = useState("");
+  const [authForm, setAuthForm] = useState({ email: user?.email || "customer@example.com", password: "customer123" });
+  const [authError, setAuthError] = useState("");
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -29,33 +29,26 @@ function Console() {
   }, [theme]);
 
   useEffect(() => {
-    fetchCurrentUser().then((currentUser) => {
-      setUser(currentUser);
-      if (currentUser?.role === "barista") {
-        setView("admin");
-      }
-      if (currentUser?.email) {
-        setCustomerEmail(currentUser.email);
-        localStorage.setItem("coffee.customer.email", currentUser.email);
-      }
-    });
-  }, []);
-
-  useEffect(() => {
     localStorage.setItem("coffee.customer.email", customerEmail);
   }, [customerEmail]);
 
   useEffect(() => {
+    if (!session.token) {
+      setProducts([]);
+      setStatus("LOGIN REQUIRED");
+      return;
+    }
+
     apiFetch("/products")
       .then(async (response) => {
         if (!response.ok) {
-          throw new Error("Menu request failed");
+          throw new Error(response.status === 401 ? "LOGIN REQUIRED" : "Menu request failed");
         }
         setProducts(await response.json());
-        setStatus(user ? "MENU ONLINE" : "GUEST MENU ONLINE");
+        setStatus(user?.role === "customer" || user?.role === "admin" ? "MENU ONLINE" : "STAFF MENU ONLINE");
       })
-      .catch(() => setStatus(user ? "AUTH REQUIRED" : "GUEST RATE LIMITED"));
-  }, [user]);
+      .catch((error) => setStatus(error.message === "LOGIN REQUIRED" ? "LOGIN REQUIRED" : "MENU REQUEST FAILED"));
+  }, [session.token, user?.role]);
 
   const cartItems = useMemo(
     () => products
@@ -77,10 +70,11 @@ function Console() {
   );
   const orderStats = useMemo(() => summarizeOrders(orders), [orders]);
   const adminStats = useMemo(() => summarizeOrders(adminOrders), [adminOrders]);
+  const isAuthenticated = Boolean(session.token);
   const isAdmin = user?.role === "admin";
-  const isBarista = user?.role === "barista";
-  const canManageOrders = isAdmin || isBarista;
-  const canOrder = !isBarista;
+  const isStaff = user?.role === "staff";
+  const canManageOrders = isAdmin || isStaff;
+  const canOrder = isAuthenticated && !isStaff;
 
   function addToCart(product) {
     setCart((current) => ({
@@ -102,6 +96,41 @@ function Console() {
       return next;
     });
     setOrderMessage("");
+  }
+
+  function updateCustomerEmail(email) {
+    setCustomerEmail(email);
+  }
+
+  async function handleLogin(nextEmail = authForm.email, nextPassword = authForm.password) {
+    try {
+      setStatus("AUTHENTICATING");
+      setAuthError("");
+      const nextSession = await login(nextEmail.trim(), nextPassword);
+      setSession(nextSession);
+      setUser(nextSession.user);
+      setCustomerEmail(nextSession.user.email || customerEmail);
+      setAuthForm({ email: nextSession.user.email || nextEmail, password: nextPassword });
+      setView(nextSession.user.role === "staff" ? "admin" : "menu");
+      setStatus(`${nextSession.user.role.toUpperCase()} LOGIN OK`);
+    } catch (error) {
+      setAuthError(error.message || "Login failed");
+      setStatus("LOGIN FAILED");
+    }
+  }
+
+  function handleLogout() {
+    logout();
+    const nextSession = getCachedSession();
+    setSession(nextSession);
+    setUser(nextSession.user);
+    setProducts([]);
+    setOrders([]);
+    setAdminOrders([]);
+    setCart({});
+    setView("menu");
+    setAuthError("");
+    setStatus("LOGIN REQUIRED");
   }
 
   async function placeOrder() {
@@ -170,7 +199,7 @@ function Console() {
 
     setAdminLoading(true);
     setStatus("LOADING QUEUE");
-    const response = await apiFetch("/orders");
+    const response = await apiFetch("/staff/orders");
     setAdminLoading(false);
 
     if (!response.ok) {
@@ -185,7 +214,7 @@ function Console() {
   async function updateAdminOrder(orderId, action) {
     setAdminLoading(true);
     setStatus(`${action.toUpperCase()} ORDER`);
-    const response = await apiFetch(`/orders/${orderId}/${action}`, { method: "POST" });
+    const response = await apiFetch(`/staff/orders/${orderId}/${action}`, { method: "POST" });
     setAdminLoading(false);
 
     if (!response.ok) {
@@ -203,16 +232,16 @@ function Console() {
     <main className="console-shell">
       <header className="topbar">
         <div className="brand-block">
-          <p className="eyebrow">ORDER-SERVICE / SUPERTOKENS</p>
+          <p className="eyebrow">ORDER-SERVICE / BASIC AUTH + JWT</p>
           <h1>Coffee Control</h1>
-          <span>{user ? `${user.email} / ${user.role}` : "Guest checkout enabled"}</span>
+          <span>{isAuthenticated ? `${user.email} / ${user.role}` : "Use one of the demo accounts to start a session"}</span>
         </div>
         <div className="topbar-actions" aria-label="Primary actions">
           <div className="task-tabs" aria-label="Customer tasks">
             <button type="button" className={view === "menu" ? "active" : ""} onClick={() => setView("menu")}>
               Order
             </button>
-            {canOrder && (
+            {canOrder && !isStaff && (
               <button type="button" className={view === "orders" ? "active" : ""} onClick={() => {
                 setView("orders");
                 loadOrders();
@@ -235,25 +264,14 @@ function Console() {
             <button type="button" className="icon-button" onClick={() => setTheme(toggleTheme(theme))}>
               {theme === "dark" ? "SUN" : "MOON"}
             </button>
-            {user ? (
-              <button type="button" onClick={async () => {
-                await logout();
-                setUser(null);
-                setView("menu");
-              }}>Log Out</button>
-            ) : (
-              <button type="button" onClick={() => {
-                setAuthMode("login");
-                setAuthOpen(true);
-              }}>Log In</button>
-            )}
+            <button type="button" onClick={handleLogout}>Logout</button>
           </div>
         </div>
       </header>
 
       <section className="status-strip" aria-label="System status">
         <span>{status}</span>
-        <span>{user ? user.role.toUpperCase() : "GUEST"}</span>
+        <span>{user.role.toUpperCase()}</span>
         <span>{cartCount} IN CART</span>
         <span>{canManageOrders ? `${activeOrderCount(adminStats)} ACTIVE` : `${orders.length} PREVIOUS`}</span>
       </section>
@@ -268,38 +286,6 @@ function Console() {
         canManageOrders={canManageOrders}
       />
 
-      {!user && authOpen && (
-        <AuthPanel
-          mode={authMode}
-          error={authError}
-          onClose={() => {
-            setAuthOpen(false);
-            setAuthError("");
-          }}
-          onModeChange={(mode) => {
-            setAuthMode(mode);
-            setAuthError("");
-          }}
-          onSubmit={async (values) => {
-            setAuthError("");
-            setStatus(authMode === "login" ? "AUTHENTICATING" : "CREATING ACCOUNT");
-            try {
-              const nextUser = authMode === "login" ? await login(values) : await signup(values);
-              setUser(nextUser);
-              setView(nextUser?.role === "barista" ? "admin" : "menu");
-              if (nextUser?.email) {
-                setCustomerEmail(nextUser.email);
-              }
-              setAuthOpen(false);
-              setStatus("MENU ONLINE");
-            } catch (error) {
-              setAuthError(error.message);
-              setStatus("AUTH FAILED");
-            }
-          }}
-        />
-      )}
-
       {canManageOrders && view === "admin" ? (
         <OperationsDashboard
           orders={adminOrders}
@@ -310,15 +296,15 @@ function Console() {
           onUpdateStatus={updateAdminOrder}
         />
       ) : view === "orders" ? (
-        <OrdersPanel
-          orders={orders}
-          loading={ordersLoading}
-          stats={orderStats}
-          customerEmail={customerEmail}
-          emailLocked={Boolean(user?.email)}
-          onEmailChange={setCustomerEmail}
-          onRefresh={loadOrders}
-        />
+          <OrdersPanel
+            orders={orders}
+            loading={ordersLoading}
+            stats={orderStats}
+            customerEmail={customerEmail}
+            emailLocked={user.role === "customer"}
+            onEmailChange={updateCustomerEmail}
+            onRefresh={loadOrders}
+          />
       ) : (
         <section className="order-workspace" aria-label="Order workspace">
           <div className="menu-panel">
@@ -362,8 +348,8 @@ function Console() {
               total={cartTotal}
               message={orderMessage}
               customerEmail={customerEmail}
-              emailLocked={Boolean(user?.email)}
-              onEmailChange={setCustomerEmail}
+              emailLocked={user.role === "customer"}
+              onEmailChange={updateCustomerEmail}
               onQuantityChange={setCartQuantity}
               onCheckout={placeOrder}
             />
@@ -371,21 +357,17 @@ function Console() {
         </section>
       )}
 
-      {!user && (
-        <section className="guest-panel">
-          <span>GUEST ACCESS</span>
-          <div className="auth-tabs">
-            <button type="button" className={authMode === "login" && authOpen ? "active" : ""} onClick={() => {
-              setAuthMode("login");
-              setAuthOpen(true);
-            }}>LOG IN</button>
-            <button type="button" className={authMode === "signup" && authOpen ? "active" : ""} onClick={() => {
-              setAuthMode("signup");
-              setAuthOpen(true);
-            }}>SIGN UP</button>
-          </div>
-        </section>
-      )}
+      <section className="guest-panel">
+        <AuthPanel
+          authError={authError}
+          isAuthenticated={isAuthenticated}
+          authForm={authForm}
+          onChange={setAuthForm}
+          onLogin={handleLogin}
+          onLogout={handleLogout}
+          user={user}
+        />
+      </section>
     </main>
   );
 }
@@ -429,6 +411,64 @@ function Metric({ label, value }) {
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
+  );
+}
+
+function AuthPanel({ authError, isAuthenticated, authForm, onChange, onLogin, onLogout, user }) {
+  const demoAccounts = [
+    { label: "Customer", email: "customer@example.com", password: "customer123" },
+    { label: "Staff", email: "staff@coffee.local", password: "staff123" },
+    { label: "Admin", email: "admin@coffee.local", password: "admin123" },
+  ];
+
+  return (
+    <>
+      <span>DEMO CREDENTIALS / JWT SESSION</span>
+      <div className="auth-tabs">
+        <span>{isAuthenticated ? `Bearer token active for ${user.email}` : "No active bearer token"}</span>
+        <span>Role: {user.role}</span>
+      </div>
+      <div className="task-tabs" aria-label="Demo credentials">
+        {demoAccounts.map((account) => (
+          <button
+            key={account.email}
+            type="button"
+            className={authForm.email === account.email ? "active" : ""}
+            onClick={() => {
+              onChange({ email: account.email, password: account.password });
+              onLogin(account.email, account.password);
+            }}
+          >
+            {account.label}
+          </button>
+        ))}
+      </div>
+      <label className="email-field">
+        <span>LOGIN EMAIL</span>
+        <input
+          type="email"
+          value={authForm.email}
+          onChange={(event) => onChange((current) => ({ ...current, email: event.target.value }))}
+          placeholder="customer@example.com"
+        />
+      </label>
+      <label className="email-field">
+        <span>LOGIN PASSWORD</span>
+        <input
+          type="password"
+          value={authForm.password}
+          onChange={(event) => onChange((current) => ({ ...current, password: event.target.value }))}
+          placeholder="customer123"
+        />
+      </label>
+      <div className="cart-actions">
+        {authError && <p>{authError}</p>}
+        <button type="button" onClick={() => onLogin()}>
+          {isAuthenticated ? "REFRESH SESSION" : "LOGIN"}
+        </button>
+        {isAuthenticated && <button type="button" onClick={onLogout}>CLEAR SESSION</button>}
+      </div>
+    </>
   );
 }
 
@@ -605,46 +645,6 @@ function OperationsDashboard({ orders, loading, stats, role, onRefresh, onUpdate
           })}
         </div>
       )}
-    </section>
-  );
-}
-
-function AuthPanel({ mode, error, onClose, onModeChange, onSubmit }) {
-  const [values, setValues] = useState({ email: "", password: "" });
-  const isSignup = mode === "signup";
-
-  function update(field, value) {
-    setValues((current) => ({ ...current, [field]: value }));
-  }
-
-  async function submit(event) {
-    event.preventDefault();
-    await onSubmit({ email: values.email, password: values.password });
-  }
-
-  return (
-    <section className="auth-panel">
-      <div className="screen-lines" />
-      <div className="auth-copy">
-        <p className="eyebrow">SECURE TERMINAL</p>
-        <h2>{isSignup ? "Create Signal" : "Operator Login"}</h2>
-      </div>
-      <button type="button" className="auth-close" onClick={onClose}>CLOSE</button>
-      <form className="auth-form" onSubmit={submit}>
-        <label>
-          <span>EMAIL</span>
-          <input type="email" value={values.email} onChange={(event) => update("email", event.target.value)} required />
-        </label>
-        <label>
-          <span>PASSWORD</span>
-          <input type="password" value={values.password} onChange={(event) => update("password", event.target.value)} minLength={isSignup ? 6 : 1} required />
-        </label>
-        {error && <p className="auth-error">{error}</p>}
-        <button type="submit">{isSignup ? "SIGN UP" : "LOG IN"}</button>
-      </form>
-      <button type="button" className="text-button" onClick={() => onModeChange(isSignup ? "login" : "signup")}>
-        {isSignup ? "HAVE AN ACCOUNT?" : "NEED AN ACCOUNT?"}
-      </button>
     </section>
   );
 }

@@ -1,23 +1,30 @@
 package auth
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 const claimsContextKey = "auth_claims"
 
+var (
+	errMissingBearerToken = errors.New("missing bearer token")
+	errInvalidBearerToken = errors.New("invalid bearer token")
+)
+
 type Role string
 
 const (
-	RoleGuest   Role = "guest"
-	RoleUser    Role = "user"
-	RoleBarista Role = "barista"
-	RoleAdmin   Role = "admin"
+	RoleGuest    Role = "guest"
+	RoleCustomer Role = "customer"
+	RoleStaff    Role = "staff"
+	RoleAdmin    Role = "admin"
 )
 
 type Claims struct {
@@ -26,31 +33,18 @@ type Claims struct {
 	Role    Role   `json:"role"`
 }
 
+type jwtClaims struct {
+	Email string `json:"email,omitempty"`
+	Role  Role   `json:"role"`
+	jwt.RegisteredClaims
+}
+
 type Middleware struct {
-	cfg     Config
-	limiter *roleLimiter
+	cfg Config
 }
 
 func NewMiddleware(cfg Config) *Middleware {
-	return &Middleware{
-		cfg:     cfg,
-		limiter: newRoleLimiter(cfg),
-	}
-}
-
-func SuperTokens() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		handled := false
-		Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			c.Request = r
-			c.Next()
-			handled = true
-		})).ServeHTTP(c.Writer, c.Request)
-
-		if !handled || c.Writer.Written() {
-			c.Abort()
-		}
-	}
+	return &Middleware{cfg: cfg}
 }
 
 func CORS(cfg Config) gin.HandlerFunc {
@@ -61,7 +55,11 @@ func CORS(cfg Config) gin.HandlerFunc {
 			c.Header("Access-Control-Allow-Credentials", "true")
 			c.Header("Vary", "Origin")
 		}
-		c.Header("Access-Control-Allow-Headers", strings.Join(append([]string{"Content-Type"}, CORSHeaders()...), ","))
+		c.Header("Access-Control-Allow-Headers", strings.Join([]string{
+			"Accept",
+			"Authorization",
+			"Content-Type",
+		}, ","))
 		c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
 
 		if c.Request.Method == http.MethodOptions {
@@ -74,63 +72,38 @@ func CORS(cfg Config) gin.HandlerFunc {
 }
 
 func (m *Middleware) AuthenticateOptional() gin.HandlerFunc {
-	return m.authenticate(false)
+	return func(c *gin.Context) {
+		claims, err := m.claimsFromRequest(c)
+		if err != nil && !errors.Is(err, errMissingBearerToken) {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid_token"})
+			return
+		}
+		if err == nil {
+			c.Set(claimsContextKey, claims)
+		}
+		c.Next()
+	}
 }
 
 func (m *Middleware) AuthenticateRequired() gin.HandlerFunc {
-	return m.authenticate(true)
-}
-
-func (m *Middleware) authenticate(sessionRequired bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		VerifySession(sessionRequired, func(w http.ResponseWriter, r *http.Request) {
-			c.Request = r
-			session := SessionFromRequest(r)
-			if session == nil {
-				c.Set(claimsContextKey, guestClaims(c.ClientIP()))
-				c.Next()
-				return
+		claims, err := m.claimsFromRequest(c)
+		if err != nil {
+			status := http.StatusUnauthorized
+			message := "authentication required"
+			if !errors.Is(err, errMissingBearerToken) {
+				message = "invalid_token"
 			}
-
-			payload := session.GetAccessTokenPayload()
-			role := RoleUser
-			if value, ok := payload["role"].(string); ok {
-				switch Role(value) {
-				case RoleAdmin:
-					role = RoleAdmin
-				case RoleBarista:
-					role = RoleBarista
-				}
-			}
-
-			email, _ := payload["email"].(string)
-			c.Set(claimsContextKey, Claims{
-				Subject: session.GetUserID(),
-				Email:   email,
-				Role:    role,
-			})
-			c.Next()
-		}).ServeHTTP(c.Writer, c.Request)
-
-		if c.Writer.Written() {
-			c.Abort()
+			c.AbortWithStatusJSON(status, gin.H{"error": message})
+			return
 		}
+		c.Set(claimsContextKey, claims)
+		c.Next()
 	}
 }
 
 func (m *Middleware) RateLimit() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		claims, ok := CurrentClaims(c)
-		if !ok {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
-			return
-		}
-
-		if !m.limiter.Allow(claims) {
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "rate limit exceeded"})
-			return
-		}
-
 		c.Next()
 	}
 }
@@ -152,6 +125,58 @@ func (m *Middleware) RequireRole(roles ...Role) gin.HandlerFunc {
 	}
 }
 
+func (m *Middleware) IssueToken(user User) (string, time.Time, error) {
+	expiresAt := time.Now().Add(m.cfg.JWTTTL)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtClaims{
+		Email: user.Email,
+		Role:  user.Role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   user.Subject,
+			Issuer:    m.cfg.JWTIssuer,
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
+		},
+	})
+
+	signed, err := token.SignedString([]byte(m.cfg.JWTSecret))
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	return signed, expiresAt, nil
+}
+
+func (m *Middleware) claimsFromRequest(c *gin.Context) (Claims, error) {
+	header := strings.TrimSpace(c.GetHeader("Authorization"))
+	if header == "" {
+		return Claims{}, errMissingBearerToken
+	}
+	parts := strings.SplitN(header, " ", 2)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+		return Claims{}, fmt.Errorf("%w: malformed authorization header", errInvalidBearerToken)
+	}
+
+	token, err := jwt.ParseWithClaims(parts[1], &jwtClaims{}, func(token *jwt.Token) (any, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(m.cfg.JWTSecret), nil
+	}, jwt.WithIssuer(m.cfg.JWTIssuer))
+	if err != nil {
+		return Claims{}, err
+	}
+
+	typedClaims, ok := token.Claims.(*jwtClaims)
+	if !ok || !token.Valid {
+		return Claims{}, errors.New("invalid token claims")
+	}
+
+	return Claims{
+		Subject: typedClaims.Subject,
+		Email:   typedClaims.Email,
+		Role:    ParseRole(string(typedClaims.Role)),
+	}, nil
+}
+
 func CurrentClaims(c *gin.Context) (Claims, bool) {
 	claims, ok := c.Get(claimsContextKey)
 	if !ok {
@@ -161,66 +186,15 @@ func CurrentClaims(c *gin.Context) (Claims, bool) {
 	return typed, ok
 }
 
-type roleLimiter struct {
-	guestLimit   int
-	userLimit    int
-	baristaLimit int
-	adminLimit   int
-	mu           sync.Mutex
-	buckets      map[string]*bucket
-}
-
-type bucket struct {
-	second int64
-	count  int
-}
-
-func newRoleLimiter(cfg Config) *roleLimiter {
-	return &roleLimiter{
-		guestLimit:   max(1, cfg.GuestLimitPerSecond),
-		userLimit:    max(1, cfg.UserLimitPerSecond),
-		baristaLimit: max(1, cfg.BaristaLimitPerSecond),
-		adminLimit:   max(1, cfg.AdminLimitPerSecond),
-		buckets:      map[string]*bucket{},
-	}
-}
-
-func (l *roleLimiter) Allow(claims Claims) bool {
-	limit := l.userLimit
-	switch claims.Role {
-	case RoleGuest:
-		limit = l.guestLimit
-	case RoleBarista:
-		limit = l.baristaLimit
+func ParseRole(value string) Role {
+	switch Role(strings.ToLower(strings.TrimSpace(value))) {
+	case RoleStaff:
+		return RoleStaff
 	case RoleAdmin:
-		limit = l.adminLimit
-	}
-
-	key := claims.Subject + ":" + string(claims.Role)
-	currentSecond := time.Now().Unix()
-
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	b := l.buckets[key]
-	if b == nil || b.second != currentSecond {
-		l.buckets[key] = &bucket{second: currentSecond, count: 1}
-		return true
-	}
-
-	if b.count >= limit {
-		return false
-	}
-	b.count++
-	return true
-}
-
-func guestClaims(ip string) Claims {
-	if ip == "" {
-		ip = "unknown"
-	}
-	return Claims{
-		Subject: "guest:" + ip,
-		Role:    RoleGuest,
+		return RoleAdmin
+	case RoleGuest:
+		return RoleGuest
+	default:
+		return RoleCustomer
 	}
 }

@@ -24,14 +24,14 @@ func NewOrderHandler(orderSvc *services.OrderService, productSvc *services.Produ
 
 func (h *OrderHandler) Register(router gin.IRouter, authMiddleware *sharedauth.Middleware) {
 	orders := router.Group("/orders")
-	orders.GET("", authMiddleware.RequireRole(sharedauth.RoleBarista, sharedauth.RoleAdmin), h.list)
-	orders.GET("/mine", authMiddleware.RequireRole(sharedauth.RoleGuest, sharedauth.RoleUser, sharedauth.RoleAdmin), h.listMine)
-	orders.GET("/:id", authMiddleware.RequireRole(sharedauth.RoleBarista, sharedauth.RoleAdmin), h.get)
-	orders.POST("", authMiddleware.RequireRole(sharedauth.RoleGuest, sharedauth.RoleUser, sharedauth.RoleAdmin), h.create)
-	orders.POST("/:id/ready", authMiddleware.RequireRole(sharedauth.RoleBarista, sharedauth.RoleAdmin), h.ready)
-	orders.POST("/:id/complete", authMiddleware.RequireRole(sharedauth.RoleBarista, sharedauth.RoleAdmin), h.complete)
-	orders.POST("/:id/cancel", authMiddleware.RequireRole(sharedauth.RoleBarista, sharedauth.RoleAdmin), h.cancel)
-	orders.DELETE("/:id", authMiddleware.RequireRole(sharedauth.RoleAdmin), h.delete)
+	orders.GET("/mine", authMiddleware.RequireRole(sharedauth.RoleCustomer, sharedauth.RoleAdmin), h.listMine)
+	orders.POST("", authMiddleware.RequireRole(sharedauth.RoleCustomer, sharedauth.RoleAdmin), h.create)
+
+	staffOrders := router.Group("/staff/orders")
+	staffOrders.GET("", authMiddleware.RequireRole(sharedauth.RoleStaff, sharedauth.RoleAdmin), h.list)
+	staffOrders.POST("/:id/ready", authMiddleware.RequireRole(sharedauth.RoleStaff, sharedauth.RoleAdmin), h.ready)
+	staffOrders.POST("/:id/complete", authMiddleware.RequireRole(sharedauth.RoleStaff, sharedauth.RoleAdmin), h.complete)
+	staffOrders.POST("/:id/cancel", authMiddleware.RequireRole(sharedauth.RoleStaff, sharedauth.RoleAdmin), h.cancel)
 }
 
 func (h *OrderHandler) list(c *gin.Context) {
@@ -69,20 +69,6 @@ func (h *OrderHandler) listMine(c *gin.Context) {
 		response[i] = dtos.ToOrderResponse(&orders[i])
 	}
 	c.JSON(http.StatusOK, response)
-}
-
-func (h *OrderHandler) get(c *gin.Context) {
-	id, ok := parseID(c, "id")
-	if !ok {
-		return
-	}
-
-	order, err := h.orderSvc.GetOrder(c.Request.Context(), id)
-	if err != nil {
-		respondError(c, err, http.StatusInternalServerError, services.ErrOrderNotFound)
-		return
-	}
-	c.JSON(http.StatusOK, dtos.ToOrderResponse(order))
 }
 
 func (h *OrderHandler) create(c *gin.Context) {
@@ -157,17 +143,4 @@ func (h *OrderHandler) updateStatus(c *gin.Context, status models.OrderStatus) {
 
 	c.Header("Location", fmt.Sprintf("/orders/%s", order.ID))
 	c.JSON(http.StatusOK, dtos.ToOrderResponse(order))
-}
-
-func (h *OrderHandler) delete(c *gin.Context) {
-	id, ok := parseID(c, "id")
-	if !ok {
-		return
-	}
-
-	if err := h.orderSvc.DeleteOrder(c.Request.Context(), id); err != nil {
-		respondError(c, err, http.StatusInternalServerError, services.ErrOrderNotFound)
-		return
-	}
-	c.Status(http.StatusNoContent)
 }

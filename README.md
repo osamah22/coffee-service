@@ -1,36 +1,39 @@
 # Coffee Service
 
-Portfolio-grade coffee ordering system built with Go service boundaries, a React frontend, PostgreSQL, RabbitMQ events, SuperTokens auth, and a notification worker.
+Coffee Service is a simplified coffee ordering demo built for an oral project defense. It has a React frontend, one Go HTTP API, RabbitMQ events, PostgreSQL persistence, and a second Go service that consumes events and sends notifications.
 
-The project intentionally keeps products inside the order-service for the current demo while preserving a clean split between HTTP handlers, business services, models, shared auth, shared events, and the notification consumer. Future gateway, product-service, and Authentik/JWKS work is documented as architecture direction rather than shipped scope.
+The application intentionally has **2 application services**:
+
+| Service | Role |
+| --- | --- |
+| `order-service` | Owns products, checkout, order status workflow, custom basic-auth login, JWT validation, database writes, and event publishing. |
+| `notification-service` | Consumes order events from RabbitMQ and sends order lifecycle emails through SMTP/MailHog. |
+
+Supporting containers are PostgreSQL, RabbitMQ, MailHog, and the frontend Nginx container.
 
 ## Features
 
-- Retro/pixel React ordering console with menu browsing, cart checkout, customer order history, and staff queue views.
-- SuperTokens email/password auth mounted at `/auth`, including `/auth/me` and role-aware middleware.
-- Guest, user, barista, and admin flows with role-specific rate limits.
-- Product CRUD and seeded coffee menu owned by the order-service.
-- Checkout with server-side product lookup so clients never submit trusted prices.
-- Customer order history and barista/admin operational queue.
-- Status workflow: `preparing -> ready -> completed`, with cancellation from active states.
-- Transactional outbox for `order.created` and `order.status_updated`.
+- Retro/pixel React ordering console.
+- Seeded coffee menu and cart checkout.
+- Customer order history by email.
+- Staff order queue with ready, complete, and cancel actions.
+- Custom basic-auth login that issues JWT bearer tokens for customer, staff, and admin demo accounts.
+- PostgreSQL runtime data and SQLite service tests.
 - RabbitMQ topic exchange for order facts.
-- Notification service that consumes order events and sends SMTP email, with MailHog for local capture.
-- PostgreSQL runtime persistence and SQLite-backed isolated service tests.
+- Notification service that receives events and sends email to MailHog.
+- GitHub Actions CI/CD for tests, frontend build, Compose validation, and image publishing.
 
 ## System Chart
 
 ```mermaid
 flowchart LR
-  Browser[React frontend] -->|HTTP + cookies| API[Order service]
-  API -->|session recipe| ST[SuperTokens]
+  Browser[React frontend] -->|HTTP + Bearer JWT| API[Order service API]
   API -->|GORM| PG[(PostgreSQL)]
-  API -->|outbox dispatcher| RMQ[(RabbitMQ topic exchange)]
+  API -->|outbox dispatcher| RMQ[(RabbitMQ coffee.orders)]
   RMQ --> Notify[Notification service]
   Notify -->|SMTP| MailHog[MailHog]
 
   subgraph Order service
-    API
     Products[products]
     Orders[orders]
     Outbox[outbox]
@@ -41,28 +44,7 @@ flowchart LR
   Orders --> Outbox
 ```
 
-Detailed charts and reference docs:
-
-- [Credentials And Diagrams](docs/credentials-and-diagrams.md)
-- [Architecture](docs/architecture.md)
-- [API Reference](docs/api.md)
-- [Event Contracts](docs/events.md)
-- [Operations Runbook](docs/runbook.md)
-
-## Stack
-
-- Go, Gin, GORM
-- React, Vite
-- PostgreSQL for local runtime data
-- SQLite for tests
-- RabbitMQ topic exchange for order events
-- SuperTokens for current auth/session handling
-- MailHog for local notification email capture
-- Docker Compose for local infrastructure
-
 ## Running Locally
-
-Start the full stack:
 
 ```bash
 docker compose up --build
@@ -75,18 +57,8 @@ Default local endpoints:
 | Frontend | `http://localhost` |
 | Order API | `http://localhost:8080` |
 | Health check | `http://localhost:8080/ping` |
-| SuperTokens | `http://localhost:3567` |
 | RabbitMQ management | `http://localhost:15672` |
 | MailHog UI | `http://localhost:8025` |
-
-Default role emails:
-
-| Role | Email |
-| --- | --- |
-| Admin | `admin@example.com` |
-| Barista | `barista@example.com` |
-| User | Any other signed-up email |
-| Guest | Anonymous requests that pass guest rate limits |
 
 Stop the stack:
 
@@ -94,7 +66,7 @@ Stop the stack:
 docker compose down
 ```
 
-Remove local runtime data:
+Reset local data:
 
 ```bash
 docker compose down -v
@@ -102,40 +74,40 @@ docker compose down -v
 
 ## Demo Flow
 
-1. Open `http://localhost` and browse the seeded menu as a guest.
-2. Add one or more products to the cart and place an order with a receipt email.
-3. Open `http://localhost:8025` to inspect the order-created email in MailHog.
-4. Sign up as `barista@example.com` to open the barista queue.
-5. Move the order through `READY` and `COMPLETE`.
+1. Open `http://localhost`.
+2. Browse the menu, enter a receipt email, and place an order.
+3. Open `http://localhost:8025` and confirm the order-created email.
+4. Switch the frontend session to the `Staff` demo account.
+5. Open the staff queue and move the order to `READY`, then `COMPLETE`.
 6. Recheck MailHog for status-update emails.
-7. Sign up as `admin@example.com` to use admin-only product management API routes.
 
 ## API Overview
 
-Products:
+The project has **1 HTTP API**: `order-service`.
 
-| Method | Path | Roles | Description |
+There are **10 demo endpoints**:
+
+| Method | Path | Role | Description |
 | --- | --- | --- | --- |
-| `GET` | `/products` | guest, user, admin | List menu products |
-| `GET` | `/products/:id` | guest, user, admin | Get one product |
-| `POST` | `/products` | admin | Create a product |
-| `PUT` | `/products/:id` | admin | Update a product |
-| `DELETE` | `/products/:id` | admin | Delete a product |
+| `GET` | `/ping` | public | Health check. |
+| `POST` | `/auth/login` | public | Exchanges HTTP Basic credentials for a JWT. |
+| `GET` | `/auth/me` | authenticated | Returns the current JWT subject, email, and role. |
+| `GET` | `/products` | customer, staff, admin | List menu products. |
+| `POST` | `/orders` | customer, admin | Create an order from product IDs and quantities. |
+| `GET` | `/orders/mine?email=:email` | customer, admin | List orders for a customer email. |
+| `GET` | `/staff/orders` | staff, admin | List all orders for the staff queue. |
+| `POST` | `/staff/orders/:id/ready` | staff, admin | Mark a preparing order ready. |
+| `POST` | `/staff/orders/:id/complete` | staff, admin | Mark a ready order completed. |
+| `POST` | `/staff/orders/:id/cancel` | staff, admin | Cancel a preparing or ready order. |
 
-Orders:
+Demo auth is intentionally simple:
 
-| Method | Path | Roles | Description |
-| --- | --- | --- | --- |
-| `POST` | `/orders` | guest, user, admin | Create an order from product IDs and quantities |
-| `GET` | `/orders/mine` | guest, user, admin | List customer orders |
-| `GET` | `/orders` | barista, admin | List all orders |
-| `GET` | `/orders/:id` | barista, admin | Get one order |
-| `POST` | `/orders/:id/ready` | barista, admin | Mark a preparing order ready |
-| `POST` | `/orders/:id/complete` | barista, admin | Mark a ready order completed |
-| `POST` | `/orders/:id/cancel` | barista, admin | Cancel a preparing or ready order |
-| `DELETE` | `/orders/:id` | admin | Delete an order |
+```text
+POST /auth/login
+Authorization: Basic base64(email:password)
+```
 
-Auth routes are mounted under `/auth` by SuperTokens. See [API Reference](docs/api.md) for request and response examples.
+Successful login returns a bearer token. The frontend sends that JWT in `Authorization: Bearer <token>` for API calls.
 
 ## Events
 
@@ -144,11 +116,11 @@ Order events are published to the durable RabbitMQ topic exchange `coffee.orders
 - `order.created`
 - `order.status_updated`
 
-Events are written to the order-service outbox inside the same database transaction as the order change, then dispatched by a background worker. The notification service binds `notification-service.orders` to both routing keys and treats events as facts, not commands.
+The order service writes events to an outbox table in the same database transaction as the order change. A background dispatcher publishes those events to RabbitMQ. The notification service consumes those facts and sends emails.
 
-See [Event Contracts](docs/events.md) for payloads and idempotency notes.
+RabbitMQ is used so checkout does not directly call notification code. If notification delivery is slow or temporarily down, orders can still be saved and events can be retried.
 
-## Tests and Checks
+## Tests And CI/CD
 
 Run the full local check suite:
 
@@ -156,20 +128,9 @@ Run the full local check suite:
 make check
 ```
 
-This runs Go tests for all modules, builds the frontend, and validates Docker Compose configuration.
+This runs Go tests, builds the frontend, and validates Docker Compose.
 
-Run targeted checks:
+CI/CD lives in `.github/workflows/ci-cd.yml`:
 
-```bash
-make test
-make frontend-build
-make docker-config
-```
-
-## Architecture Notes
-
-- Current auth is SuperTokens inside order-service.
-- Current product data lives in order-service for demo simplicity.
-- The future gateway will validate JWTs and inject trusted user headers.
-- The future product service will own products and expose product lookup to order-service.
-- Swagger is intentionally not wired right now because the Markdown API reference is smaller, current, and sufficient for the portfolio demo.
+- Pull requests and pushes run tests/build checks.
+- Pushes to `main` build and publish Docker images to GHCR.

@@ -1,143 +1,107 @@
 const apiUrl = stripTrailingSlash(import.meta.env.VITE_API_URL || "http://localhost:8080");
 
 const storageKeys = {
-  user: "coffee.auth.user",
+  session: "coffee.auth.session",
 };
 
-export async function login(credentials) {
-  return authenticate("/auth/signin", credentials);
-}
+const guestSession = {
+  token: "",
+  user: {
+    email: "",
+    role: "guest",
+  },
+};
 
-export async function signup(credentials) {
-  return authenticate("/auth/signup", credentials);
-}
-
-async function authenticate(path, credentials) {
-  const response = await fetch(`${apiUrl}${path}`, {
+export async function login(email, password) {
+  const credentials = btoa(`${email}:${password}`);
+  const response = await fetch(`${apiUrl}/auth/login`, {
     method: "POST",
-    credentials: "include",
     headers: {
       Accept: "application/json",
-      "Content-Type": "application/json",
-      "st-auth-mode": "cookie",
+      Authorization: `Basic ${credentials}`,
     },
-    body: JSON.stringify({
-      formFields: [
-        { id: "email", value: credentials.email },
-        { id: "password", value: credentials.password },
-      ],
-    }),
   });
 
   if (!response.ok) {
-    const message = await errorMessage(response);
+    const message = await readErrorMessage(response, "Login failed");
     throw new Error(message);
   }
 
-  const session = await response.json();
-  if (session.status && session.status !== "OK") {
-    throw new Error(authStatusMessage(session));
-  }
+  const payload = await response.json();
+  const session = {
+    token: payload.access_token || "",
+    user: {
+      email: payload.user?.email || "",
+      role: payload.user?.role || "guest",
+    },
+  };
 
-  const user = await fetchCurrentUser();
-  if (!user) {
-    throw new Error("Session was not created");
-  }
-  localStorage.setItem(storageKeys.user, JSON.stringify(user));
-  return user;
+  persistSession(session);
+  return session;
 }
 
-export async function logout() {
-  await fetch(`${apiUrl}/auth/signout`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      Accept: "application/json",
-      "st-auth-mode": "cookie",
-    },
-  }).catch(() => {});
-  localStorage.removeItem(storageKeys.user);
+export function logout() {
+  localStorage.removeItem(storageKeys.session);
+}
+
+export function getCachedSession() {
+  const raw = localStorage.getItem(storageKeys.session);
+  if (!raw) {
+    return guestSession;
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      token: parsed.token || "",
+      user: {
+        ...guestSession.user,
+        ...(parsed.user || {}),
+      },
+    };
+  } catch {
+    return guestSession;
+  }
 }
 
 export function getCachedUser() {
-  const raw = localStorage.getItem(storageKeys.user);
-  return raw ? JSON.parse(raw) : null;
-}
-
-export async function fetchCurrentUser() {
-  const response = await sessionFetch("/auth/me");
-  if (!response.ok) {
-    localStorage.removeItem(storageKeys.user);
-    return null;
-  }
-
-  const user = await response.json();
-  localStorage.setItem(storageKeys.user, JSON.stringify(user));
-  return user;
+  return getCachedSession().user;
 }
 
 export async function apiFetch(path, options = {}) {
-  return sessionFetch(path, options);
-}
-
-async function sessionFetch(path, options = {}) {
   const headers = new Headers(options.headers || {});
+  const session = getCachedSession();
+
   headers.set("Accept", "application/json");
-  headers.set("st-auth-mode", "cookie");
+  if (session.token) {
+    headers.set("Authorization", `Bearer ${session.token}`);
+  }
   if (options.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
-  let response = await fetch(`${apiUrl}${path}`, { ...options, credentials: "include", headers });
-  if (response.status === 401) {
-    const refreshed = await refreshSession();
-    if (refreshed) {
-      response = await fetch(`${apiUrl}${path}`, { ...options, credentials: "include", headers });
-    }
-  }
-  if (response.status === 401) {
-    localStorage.removeItem(storageKeys.user);
-  }
-  return response;
+  return fetch(`${apiUrl}${path}`, { ...options, headers });
 }
 
-async function refreshSession() {
-  const response = await fetch(`${apiUrl}/auth/session/refresh`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      Accept: "application/json",
-      rid: "session",
-      "st-auth-mode": "cookie",
+export function persistSession(session) {
+  const nextSession = {
+    token: session?.token || "",
+    user: {
+      ...guestSession.user,
+      ...(session?.user || {}),
     },
-  }).catch(() => null);
-  return Boolean(response && response.ok);
+  };
+  localStorage.setItem(storageKeys.session, JSON.stringify(nextSession));
+  return nextSession;
 }
 
-async function errorMessage(response) {
+async function readErrorMessage(response, fallback) {
   try {
     const body = await response.json();
-    return body.message || body.error || authStatusMessage(body) || "Authentication failed";
+    return body.error || fallback;
   } catch {
-    return "Authentication failed";
+    return fallback;
   }
-}
-
-function authStatusMessage(body) {
-  const status = typeof body === "string" ? body : body?.status;
-  if (status === "FIELD_ERROR" && Array.isArray(body?.formFields)) {
-    return body.formFields.map((field) => field.error).filter(Boolean).join(". ");
-  }
-  if (status === "FIELD_ERROR") {
-    return "Check your email and password";
-  }
-  if (status === "WRONG_CREDENTIALS_ERROR") {
-    return "Invalid email or password";
-  }
-  if (status === "EMAIL_ALREADY_EXISTS_ERROR") {
-    return "Email already exists";
-  }
-  return status ? "Authentication failed" : "";
 }
 
 function stripTrailingSlash(value) {

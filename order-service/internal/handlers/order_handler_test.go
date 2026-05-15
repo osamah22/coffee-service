@@ -22,7 +22,7 @@ func TestCreateOrderUsesServerProductData(t *testing.T) {
 	router, db := newOrderHandlerTestRouter(t, sharedauth.Claims{
 		Subject: "user-1",
 		Email:   "customer@example.test",
-		Role:    sharedauth.RoleUser,
+		Role:    sharedauth.RoleCustomer,
 	})
 	product := createTestProduct(t, db, "Latte", 4250)
 
@@ -68,7 +68,7 @@ func TestListMineUsesAuthenticatedEmailOverQuery(t *testing.T) {
 	router, db := newOrderHandlerTestRouter(t, sharedauth.Claims{
 		Subject: "alice",
 		Email:   "alice@example.test",
-		Role:    sharedauth.RoleUser,
+		Role:    sharedauth.RoleCustomer,
 	})
 	orderSvc := services.NewOrderService(db)
 	createTestOrder(t, orderSvc, "alice@example.test")
@@ -93,13 +93,13 @@ func TestListMineUsesAuthenticatedEmailOverQuery(t *testing.T) {
 
 func TestStaffCanAdvanceOrderStatus(t *testing.T) {
 	router, db := newOrderHandlerTestRouter(t, sharedauth.Claims{
-		Subject: "barista",
-		Email:   "barista@example.test",
-		Role:    sharedauth.RoleBarista,
+		Subject: "staff",
+		Email:   "staff@example.test",
+		Role:    sharedauth.RoleStaff,
 	})
 	order := createTestOrder(t, services.NewOrderService(db), "customer@example.test")
 
-	response := performJSON(t, router, http.MethodPost, "/orders/"+order.ID.String()+"/ready", nil)
+	response := performJSON(t, router, http.MethodPost, "/staff/orders/"+order.ID.String()+"/ready", nil)
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d: %s", response.Code, response.Body.String())
@@ -116,10 +116,10 @@ func TestUserCannotListStaffOrderQueue(t *testing.T) {
 	router, _ := newOrderHandlerTestRouter(t, sharedauth.Claims{
 		Subject: "user-1",
 		Email:   "customer@example.test",
-		Role:    sharedauth.RoleUser,
+		Role:    sharedauth.RoleCustomer,
 	})
 
-	response := performJSON(t, router, http.MethodGet, "/orders", nil)
+	response := performJSON(t, router, http.MethodGet, "/staff/orders", nil)
 
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("expected status 403, got %d: %s", response.Code, response.Body.String())
@@ -191,10 +191,10 @@ func createTestOrder(t *testing.T, orderSvc *services.OrderService, email string
 		CustomerEmail: email,
 		Items: []models.LineItem{
 			{
-				ProductID:     productID,
-				ProductName:   "Latte",
-				Quantity:      1,
-				PriceInKurus:  4000,
+				ProductID:    productID,
+				ProductName:  "Latte",
+				Quantity:     1,
+				PriceInKurus: 4000,
 			},
 		},
 	})

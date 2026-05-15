@@ -1,6 +1,6 @@
 # Operations Runbook
 
-This runbook covers local development and portfolio demo operation.
+This runbook covers the simplified local demo.
 
 ## Start
 
@@ -15,7 +15,6 @@ Expected endpoints:
 | Frontend | `http://localhost` |
 | Order API | `http://localhost:8080` |
 | Health | `http://localhost:8080/ping` |
-| SuperTokens | `http://localhost:3567` |
 | RabbitMQ management | `http://localhost:15672` |
 | MailHog | `http://localhost:8025` |
 
@@ -28,6 +27,12 @@ curl http://localhost:8025
 ```
 
 Then place an order from the frontend and verify an email appears in MailHog.
+
+Default login accounts:
+
+- `customer@example.com` / `customer123`
+- `staff@coffee.local` / `staff123`
+- `admin@coffee.local` / `admin123`
 
 ## Stop
 
@@ -47,13 +52,7 @@ docker compose down -v
 make check
 ```
 
-The check target runs:
-
-1. `go test ./...` in `order-service`
-2. `go test ./...` in `notification-service`
-3. `go test ./...` in `shared`
-4. `npm run build` in `frontend`
-5. `docker compose config`
+The check target runs Go tests, builds the frontend, and validates Docker Compose.
 
 ## Important Environment Variables
 
@@ -63,22 +62,19 @@ Order service:
 | --- | --- | --- |
 | `PORT` | `8080` | HTTP server port. |
 | `DB_URL` | local Postgres DSN | Runtime database connection. |
-| `RABBITMQ_URL` | `amqp://guest:guest@localhost:5672/` | RabbitMQ connection. |
-| `SUPERTOKENS_CONNECTION_URI` | `http://localhost:3567` | SuperTokens service URL. |
-| `SUPERTOKENS_API_DOMAIN` | `http://localhost:8080` | API cookie/session domain config. |
-| `SUPERTOKENS_WEBSITE_DOMAIN` | `http://localhost:5173` | Frontend domain config. Compose overrides this to `http://localhost`. |
-| `SUPERTOKENS_ADMIN_EMAILS` | `admin@example.com` | Comma-separated admin email list. |
-| `SUPERTOKENS_BARISTA_EMAILS` | `barista@example.com` | Comma-separated barista email list. |
-| `AUTH_GUEST_RPS` | `10` | Guest requests per second. |
-| `AUTH_USER_RPS` | `10` | User requests per second. |
-| `AUTH_BARISTA_RPS` | `250` | Barista requests per second. |
-| `AUTH_ADMIN_RPS` | `1000` | Admin requests per second. |
+| `RABBITMQ_URL` | `amqp://guest:guest@127.0.0.1:5672/` | RabbitMQ connection. |
+| `API_DOMAIN` | `http://localhost:8080` | API origin allowed by CORS. |
+| `WEBSITE_DOMAIN` | `http://localhost:5173` | Frontend origin allowed by CORS. Compose sets this to `http://localhost`. |
+| `JWT_SECRET` | `coffee-service-local-jwt-secret` | HMAC secret for signed bearer tokens. |
+| `JWT_ISSUER` | `coffee-service` | JWT issuer claim value. |
+| `JWT_TTL_MINUTES` | `480` | Token lifetime in minutes. |
+| `DEMO_USERS` | built-in customer/staff/admin accounts | Comma-separated `email:password:role[:subject]` entries. |
 
 Notification service:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `RABBITMQ_URL` | `amqp://guest:guest@localhost:5672/` | RabbitMQ connection. |
+| `RABBITMQ_URL` | `amqp://guest:guest@127.0.0.1:5672/` | RabbitMQ connection. |
 | `SMTP_HOST` | empty | SMTP server host. If empty, sender logs instead of using SMTP. |
 | `SMTP_PORT` | `1025` | SMTP port. |
 | `SMTP_USERNAME` | empty | Optional SMTP username. |
@@ -96,12 +92,12 @@ Frontend:
 
 | Symptom | Check |
 | --- | --- |
-| Frontend cannot log in | Confirm `SUPERTOKENS_WEBSITE_DOMAIN` matches the browser origin and cookies are accepted. |
+| Staff queue returns `403` | Log in with the staff or admin demo account, then retry the queue request with the bearer token. |
+| Products return `401` | Log in again so the frontend stores a fresh JWT, or send `Authorization: Bearer <token>`. |
 | Orders are created but no email appears | Check RabbitMQ health, notification-service logs, and MailHog at `http://localhost:8025`. |
 | Product list is empty | Check order-service startup logs for migration or seed errors. |
 | `make check` fails at Docker Compose config | Run `docker compose version` and confirm Docker is installed. |
-| Guest requests get `429` | Wait one second or raise `AUTH_GUEST_RPS` for local load testing. |
 
 ## Local Data
 
-PostgreSQL data is stored in the named volume `order-service_postgres_data`. Removing the volume resets products, orders, outbox rows, and SuperTokens metadata.
+PostgreSQL data is stored in the named volume `order-service_postgres_data`. Removing the volume resets products, orders, line items, and outbox rows.

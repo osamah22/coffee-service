@@ -2,44 +2,61 @@
 
 Base URL for local Compose: `http://localhost:8080`.
 
-All protected app routes are mounted under the optional SuperTokens session middleware and role limiter. Guests can use the menu and checkout routes where listed. Signed-in users send SuperTokens cookies automatically from the frontend.
+The project exposes one HTTP API: `order-service`.
 
-## Health
+## Authentication
 
-| Method | Path | Description |
+Login uses HTTP Basic authentication:
+
+| Header | Values | Purpose |
 | --- | --- | --- |
-| `GET` | `/ping` | Returns `{"message":"pong"}`. |
+| `Authorization` | `Basic base64(email:password)` | Used only on `POST /auth/login`. |
 
-## Auth
+Authenticated application routes use:
 
-SuperTokens routes are mounted under `/auth`.
-
-| Method | Path | Description |
+| Header | Values | Purpose |
 | --- | --- | --- |
-| `POST` | `/auth/signup` | SuperTokens email/password signup. |
-| `POST` | `/auth/signin` | SuperTokens email/password login. |
-| `POST` | `/auth/signout` | Ends the current session. |
-| `POST` | `/auth/session/refresh` | Refreshes an expired access token. |
-| `GET` | `/auth/me` | Returns current user claims. |
+| `Authorization` | `Bearer <jwt>` | Carries the signed demo session token. |
 
-`/auth/me` response:
+Default local demo accounts:
+
+| Email | Password | Role |
+| --- | --- | --- |
+| `customer@example.com` | `customer123` | `customer` |
+| `staff@coffee.local` | `staff123` | `staff` |
+| `admin@coffee.local` | `admin123` | `admin` |
+
+## Endpoints
+
+| Method | Path | Role | Description |
+| --- | --- | --- | --- |
+| `POST` | `/auth/login` | public | Exchanges HTTP Basic credentials for a JWT. |
+| `GET` | `/auth/me` | authenticated | Returns the current JWT subject, email, and role. |
+| `GET` | `/ping` | public | Returns `{"message":"pong"}`. |
+| `GET` | `/products` | customer, staff, admin | Lists all menu products. |
+| `POST` | `/orders` | customer, admin | Creates an order and enqueues `order.created`. |
+| `GET` | `/orders/mine?email=:email` | customer, admin | Lists orders for the customer email. |
+| `GET` | `/staff/orders` | staff, admin | Lists all orders for the staff queue. |
+| `POST` | `/staff/orders/:id/ready` | staff, admin | Moves `preparing` to `ready` and enqueues `order.status_updated`. |
+| `POST` | `/staff/orders/:id/complete` | staff, admin | Moves `ready` to `completed` and enqueues `order.status_updated`. |
+| `POST` | `/staff/orders/:id/cancel` | staff, admin | Cancels `preparing` or `ready` and enqueues `order.status_updated`. |
+
+## Login
+
+Login response:
 
 ```json
 {
-  "subject": "supertokens-user-id",
-  "email": "barista@example.com",
-  "role": "barista"
+  "access_token": "<jwt>",
+  "token_type": "Bearer",
+  "expires_at": "2026-05-15T18:00:00Z",
+  "user": {
+    "id": "customer-1",
+    "email": "customer@example.com",
+    "role": "customer"
+  }
 }
 ```
-
-## Roles
-
-| Role | Source | Access summary |
-| --- | --- | --- |
-| `guest` | No active session | List products, create orders, query own orders by email. |
-| `user` | Signed in, not in staff email lists | Customer order workflow. |
-| `barista` | Email in `SUPERTOKENS_BARISTA_EMAILS` | Staff queue and status updates. |
-| `admin` | Email in `SUPERTOKENS_ADMIN_EMAILS` | Product management plus staff queue. |
 
 ## Products
 
@@ -55,33 +72,6 @@ Product response:
   "available": true
 }
 ```
-
-Create or update request:
-
-```json
-{
-  "name": "Iced Latte",
-  "category": "cold",
-  "price_in_kurus": 9000,
-  "image_path": "/products/iced-latte.png",
-  "available": true
-}
-```
-
-| Method | Path | Roles | Description |
-| --- | --- | --- | --- |
-| `GET` | `/products` | guest, user, admin | Lists all products. |
-| `GET` | `/products/:id` | guest, user, admin | Returns one product by UUID. |
-| `POST` | `/products` | admin | Creates a product. |
-| `PUT` | `/products/:id` | admin | Replaces product fields. |
-| `DELETE` | `/products/:id` | admin | Deletes a product. |
-
-Validation:
-
-- `name` is required.
-- `category` must be `hot` or `cold`.
-- `price_in_kurus` must be zero or greater.
-- `image_path` is required.
 
 ## Orders
 
@@ -99,7 +89,7 @@ Create request:
 }
 ```
 
-Signed-in users may omit `customer_email`; the service uses the email from session claims. Prices and product names are loaded server-side from current product records.
+Prices and product names are loaded server-side from stored product records. The client sends only product IDs and quantities.
 
 Order response:
 
@@ -121,26 +111,16 @@ Order response:
 }
 ```
 
-| Method | Path | Roles | Description |
-| --- | --- | --- | --- |
-| `POST` | `/orders` | guest, user, admin | Creates an order and enqueues `order.created`. |
-| `GET` | `/orders/mine?email=:email` | guest, user, admin | Lists matching customer orders. Signed-in users always use their session email. |
-| `GET` | `/orders` | barista, admin | Lists all orders for staff queue. |
-| `GET` | `/orders/:id` | barista, admin | Returns one order by UUID. |
-| `POST` | `/orders/:id/ready` | barista, admin | Moves `preparing` to `ready`. |
-| `POST` | `/orders/:id/complete` | barista, admin | Moves `ready` to `completed`. |
-| `POST` | `/orders/:id/cancel` | barista, admin | Cancels `preparing` or `ready`. |
-| `DELETE` | `/orders/:id` | admin | Deletes an order and line items. |
+Valid status transitions:
 
-Status transitions:
+- `preparing -> ready`
+- `ready -> completed`
+- `preparing -> cancelled`
+- `ready -> cancelled`
 
-![Order status transitions Excalidraw diagram](diagrams/api-status-transitions.svg)
+## Errors
 
-[Edit Excalidraw source](diagrams/api-status-transitions.excalidraw)
-
-## Error Shape
-
-Most application errors return a simple JSON object:
+Most errors return:
 
 ```json
 {
@@ -152,9 +132,8 @@ Common status codes:
 
 | Status | Meaning |
 | --- | --- |
-| `400` | Invalid request, validation error, missing customer email, invalid transition, or unknown product during checkout. |
-| `401` | Authentication required for a route that did not receive claims. |
+| `400` | Invalid request, validation error, missing customer email, invalid transition, or unknown product. |
+| `401` | Missing/invalid Basic credentials or missing/invalid JWT. |
 | `403` | Authenticated role is not allowed. |
 | `404` | Resource not found. |
-| `429` | Role-based rate limit exceeded. |
 | `500` | Unexpected service/database failure. |

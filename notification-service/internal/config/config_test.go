@@ -13,7 +13,7 @@ func TestFromEnvUsesDefaults(t *testing.T) {
 
 	cfg := FromEnv()
 
-	if cfg.RabbitMQURL != "amqp://guest:guest@localhost:5672/" {
+	if cfg.RabbitMQURL != "amqp://guest:guest@127.0.0.1:5672/" {
 		t.Fatalf("unexpected rabbit url: %q", cfg.RabbitMQURL)
 	}
 	if cfg.SMTPHost != "" {
