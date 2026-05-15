@@ -18,7 +18,7 @@ func NewProductHandler(svc *services.ProductService) *ProductHandler {
 
 func (h *ProductHandler) Register(router gin.IRouter, authMiddleware *sharedauth.Middleware) {
 	products := router.Group("/products")
-	products.GET("", authMiddleware.RequireRole(sharedauth.RoleCustomer, sharedauth.RoleStaff, sharedauth.RoleAdmin), h.list)
+	products.GET("", authMiddleware.RequireRole(sharedauth.RoleUser, sharedauth.RoleBarista, sharedauth.RoleAdmin), h.list)
 }
 
 func (h *ProductHandler) list(c *gin.Context) {

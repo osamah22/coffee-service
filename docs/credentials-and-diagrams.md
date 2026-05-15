@@ -1,25 +1,27 @@
 # Credentials And Demo Notes
 
-This page collects local credentials and the short explanation points for the simplified Coffee Service demo.
+This page collects local credentials plus short defense-ready answers for the current split-auth architecture.
 
 ## Demo Auth
 
-The frontend now uses local demo accounts with HTTP Basic login and JWT bearer sessions.
+The frontend signs in through `auth-service` with email/password and then stores a bearer JWT.
 
 | Role | Email | Password |
 | --- | --- | --- |
-| Customer | `customer@example.com` | `customer123` |
-| Staff | `staff@coffee.local` | `staff123` |
+| User | `customer@example.com` | `customer123` |
+| Barista | `barista@coffee.local` | `barista123` |
 | Admin | `admin@coffee.local` | `admin123` |
 
 Login request:
 
-```text
-POST /auth/login
-Authorization: Basic base64(email:password)
+```json
+{
+  "email": "customer@example.com",
+  "password": "customer123"
+}
 ```
 
-After login, the frontend stores the JWT and sends:
+After login, browser requests send:
 
 ```text
 Authorization: Bearer <token>
@@ -27,34 +29,33 @@ Authorization: Bearer <token>
 
 ## Local Infrastructure Credentials
 
-These credentials are for local development only.
-
 | Component | URL or DSN | Username | Password | Notes |
 | --- | --- | --- | --- | --- |
 | Frontend | `http://localhost` | None | None | React console served by Nginx. |
-| Order API | `http://localhost:8080` | Basic auth at login, then Bearer JWT | Demo credentials above | Single HTTP API. |
-| PostgreSQL | `postgres://postgres:postgres@localhost:5432/coffee` | `postgres` | `postgres` | Runtime DB for order-service. |
-| RabbitMQ AMQP | `amqp://guest:guest@127.0.0.1:5672/` | `guest` | `guest` | Used by outbox dispatcher and notification service. |
-| RabbitMQ UI | `http://localhost:15672` | `guest` | `guest` | Management UI from the RabbitMQ image. |
+| Auth API | `http://localhost:8081` | Demo credentials above | Demo credentials above | Login and token-backed identity. |
+| Order API | `http://localhost:8080` | Bearer JWT | Bearer JWT | Product/order API. |
+| PostgreSQL | `postgres://postgres:postgres@localhost:5432/coffee` | `postgres` | `postgres` | Shared instance; auth and order own separate tables. |
+| RabbitMQ AMQP | `amqp://guest:guest@127.0.0.1:5672/` | `guest` | `guest` | Used by both outbox dispatchers and notification-service. |
+| RabbitMQ UI | `http://localhost:15672` | `guest` | `guest` | Management UI. |
 | MailHog UI | `http://localhost:8025` | None | None | Local email inspection UI. |
-| MailHog SMTP | `localhost:1025` | None | None | Notification service sends here locally. |
+| MailHog SMTP | `localhost:1025` | None | None | Notification-service sends here locally. |
 
 ## Quick Defense Answers
 
 | Question | Answer |
 | --- | --- |
-| How many services? | Two application services: order-service and notification-service. |
-| How many APIs? | One HTTP API: order-service. Notification-service is event-only. |
-| How many endpoints? | Eight demo endpoints including `/ping`. |
-| Why RabbitMQ? | It decouples order creation from notification delivery and lets notification processing retry independently. |
-| Do you have auth? | Yes, a custom basic-auth login endpoint issues JWTs and handlers enforce role checks from the bearer token. |
-| Where is CI/CD? | `.github/workflows/ci-cd.yml`. It runs tests/build checks and publishes Docker images on `main`. |
+| How many services? | Three application services: auth-service, order-service, notification-service. |
+| How many APIs? | Two HTTP APIs: auth-service and order-service. Notification-service is event-only. |
+| Why split auth? | Email/password auth now has its own user table, JWT boundary, and auth events without mixing that logic into order ownership. |
+| Which roles exist? | `user`, `barista`, `admin`. |
+| Why RabbitMQ? | It decouples both order and auth side effects from email delivery and lets notification handling retry independently. |
 
-## Main Runtime Flow
+## Database Snapshot
 
-![Runtime system Excalidraw diagram](diagrams/runtime-system.svg)
+See [architecture.md](architecture.md) for the ER diagrams. The runtime PostgreSQL volume now contains:
 
-[Edit Excalidraw source](diagrams/runtime-system.excalidraw)
+- `users` and `outbox_events` owned by `auth-service`
+- `products`, `orders`, `line_items`, and order outbox rows owned by `order-service`
 
 ## Reset Local Data
 
@@ -62,4 +63,4 @@ These credentials are for local development only.
 docker compose down -v
 ```
 
-That deletes PostgreSQL runtime data, including products, orders, line items, and outbox rows.
+That deletes runtime data for users, products, orders, line items, and outbox rows.

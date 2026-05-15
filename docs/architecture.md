@@ -1,72 +1,134 @@
 # Architecture
 
-Coffee Service is a compact service-oriented demo with a small frontend, one HTTP API, RabbitMQ, and a second event-consuming service.
+Coffee Service is a compact service-oriented demo with a frontend, two HTTP APIs, RabbitMQ, and an event-only notification worker.
 
 ## Runtime Containers
 
 | Container | Purpose |
 | --- | --- |
 | `frontend` | Serves the Vite-built React console through Nginx. |
-| `order-service` | Owns products, orders, checkout, custom basic-auth login, JWT validation, staff status workflow, and outbox dispatch. |
-| `notification-service` | Consumes order events and sends order lifecycle emails. It does not write to another service database. |
-| `postgres` | Primary runtime database for products, orders, line items, and outbox rows. |
-| `rabbitmq` | Topic exchange transport for order events. |
+| `auth-service` | Owns users, password hashes, JWT issuance, role identity, and auth outbox events. |
+| `order-service` | Owns products, orders, checkout, status workflow, and order outbox events. |
+| `notification-service` | Consumes order/auth facts and sends emails. It does not write to another service database. |
+| `postgres` | Shared PostgreSQL instance with service-owned tables. |
+| `rabbitmq` | Topic exchange transport for service facts. |
 | `mailhog` | Local SMTP sink and email inspection UI. |
 
 ## Service Boundaries
 
-The application has two app services:
+- `auth-service`: email/password auth and roles (`user`, `barista`, `admin`).
+- `order-service`: products, orders, and barista workflow.
+- `notification-service`: event consumer only.
 
-- `order-service`: owns product/menu data and orders for the demo.
-- `notification-service`: consumes events only and sends notifications.
+Shared packages remain intentionally small:
 
-The order-service keeps the same simple Go structure:
-
-- `internal/models`: GORM models and validation.
-- `internal/services`: business behavior, transactions, and outbox creation.
-- `internal/handlers`: HTTP request/response layer.
-- `shared/auth`: basic-auth login, JWT issuing/validation, and role checks.
-- `shared/events`: event names and JSON payload contracts.
-- `shared/rabbitmq`: exchange declaration and publishing helpers.
+- `shared/auth`: JWT issuing/validation, role parsing, and CORS.
+- `shared/events`: event names and payload contracts.
+- `shared/rabbitmq`: AMQP helpers.
 
 ## Auth And Roles
 
-Auth is intentionally simple for the project defense. The frontend logs in with:
+The frontend logs in through `auth-service`:
 
-```text
-POST /auth/login
-Authorization: Basic base64(email:password)
+```json
+{
+  "email": "customer@example.com",
+  "password": "customer123"
+}
 ```
 
-The API returns a bearer token. Application requests send `Authorization: Bearer <jwt>`, and handlers enforce role checks:
+The auth API returns a JWT. Order-service trusts that token and enforces route access:
 
-- `customer`: menu, checkout, own order history.
-- `staff`: menu and staff order queue/status changes.
-- `admin`: customer and staff routes.
-
-This demonstrates custom authentication and authorization without adding an external identity provider to the demo.
+- `user`: menu, checkout, own order history.
+- `barista`: menu and queue/status actions.
+- `admin`: both user and barista capabilities.
 
 ## Events
 
-RabbitMQ carries facts from the order-service to the notification-service:
+RabbitMQ carries facts between services:
 
-- `order.created`
-- `order.status_updated`
+- `coffee.orders`: `order.created`, `order.status_updated`
+- `coffee.auth`: `password_reset.requested`
 
-The order-service writes outbox rows in the same transaction as order changes, then a background dispatcher publishes them to the `coffee.orders` topic exchange. This keeps checkout independent from notification delivery.
+Both producer services use the transactional outbox pattern so database state and publish intent are recorded atomically.
 
-## Data Ownership
+## Database Diagrams
 
-| Data | Owner | Notes |
-| --- | --- | --- |
-| Products | Order service | Kept local for demo simplicity and server-side price lookup. |
-| Orders | Order service | Includes line items and status lifecycle. |
-| Outbox events | Order service | Published asynchronously to RabbitMQ. |
-| Notification delivery | Notification service process | No cross-service database writes. |
+### Auth Service Schema
 
-## Intentional Non-Goals
+```mermaid
+erDiagram
+  USERS {
+    uuid id PK
+    string email UK
+    string password_hash
+    string role
+    timestamp created_at
+    timestamp updated_at
+  }
 
-- No separate product service.
-- No gateway.
-- No production identity provider.
-- No extra event types unless another service consumes the fact.
+  AUTH_OUTBOX_EVENTS {
+    uuid id PK
+    string event_type
+    string aggregate_type
+    string aggregate_id
+    string routing_key
+    text payload
+    int attempts
+    text last_error
+    timestamp occurred_at
+    timestamp published_at
+    timestamp created_at
+  }
+
+  USERS ||--o{ AUTH_OUTBOX_EVENTS : emits
+```
+
+### Order Service Schema
+
+```mermaid
+erDiagram
+  PRODUCTS {
+    uuid id PK
+    string name
+    string category
+    int64 price_in_kurus
+    string image_path
+    bool available
+  }
+
+  ORDERS {
+    uuid id PK
+    string customer_email
+    int64 total
+    string status
+    timestamp created_at
+    timestamp updated_at
+  }
+
+  LINE_ITEMS {
+    uuid id PK
+    uuid order_id FK
+    uuid product_id
+    string product_name
+    int quantity
+    int64 price_in_kurus
+  }
+
+  ORDER_OUTBOX_EVENTS {
+    uuid id PK
+    string event_type
+    string aggregate_type
+    string aggregate_id
+    string routing_key
+    text payload
+    int attempts
+    text last_error
+    timestamp occurred_at
+    timestamp published_at
+    timestamp created_at
+  }
+
+  ORDERS ||--o{ LINE_ITEMS : contains
+  ORDERS ||--o{ ORDER_OUTBOX_EVENTS : emits
+```

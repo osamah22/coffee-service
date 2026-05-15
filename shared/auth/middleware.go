@@ -21,10 +21,10 @@ var (
 type Role string
 
 const (
-	RoleGuest    Role = "guest"
-	RoleCustomer Role = "customer"
-	RoleStaff    Role = "staff"
-	RoleAdmin    Role = "admin"
+	RoleGuest   Role = "guest"
+	RoleUser    Role = "user"
+	RoleBarista Role = "barista"
+	RoleAdmin   Role = "admin"
 )
 
 type Claims struct {
@@ -50,10 +50,15 @@ func NewMiddleware(cfg Config) *Middleware {
 func CORS(cfg Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
-		if origin != "" && (origin == cfg.WebsiteDomain || origin == cfg.APIDomain) {
-			c.Header("Access-Control-Allow-Origin", origin)
-			c.Header("Access-Control-Allow-Credentials", "true")
-			c.Header("Vary", "Origin")
+		if origin != "" {
+			for _, allowed := range cfg.AllowedOrigins() {
+				if origin == allowed {
+					c.Header("Access-Control-Allow-Origin", origin)
+					c.Header("Access-Control-Allow-Credentials", "true")
+					c.Header("Vary", "Origin")
+					break
+				}
+			}
 		}
 		c.Header("Access-Control-Allow-Headers", strings.Join([]string{
 			"Accept",
@@ -125,13 +130,13 @@ func (m *Middleware) RequireRole(roles ...Role) gin.HandlerFunc {
 	}
 }
 
-func (m *Middleware) IssueToken(user User) (string, time.Time, error) {
+func (m *Middleware) IssueToken(claims Claims) (string, time.Time, error) {
 	expiresAt := time.Now().Add(m.cfg.JWTTTL)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtClaims{
-		Email: user.Email,
-		Role:  user.Role,
+		Email: claims.Email,
+		Role:  claims.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   user.Subject,
+			Subject:   claims.Subject,
 			Issuer:    m.cfg.JWTIssuer,
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
@@ -188,13 +193,15 @@ func CurrentClaims(c *gin.Context) (Claims, bool) {
 
 func ParseRole(value string) Role {
 	switch Role(strings.ToLower(strings.TrimSpace(value))) {
-	case RoleStaff:
-		return RoleStaff
+	case RoleBarista, Role("staff"):
+		return RoleBarista
 	case RoleAdmin:
 		return RoleAdmin
 	case RoleGuest:
 		return RoleGuest
+	case RoleUser, Role("customer"):
+		return RoleUser
 	default:
-		return RoleCustomer
+		return RoleUser
 	}
 }

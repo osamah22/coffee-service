@@ -3,6 +3,7 @@ app.db
 .codex
 .codex/
 go.sum
+!auth-service/go.sum
 
 order-service/server
 order-service/app

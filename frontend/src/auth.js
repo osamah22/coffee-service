@@ -1,4 +1,5 @@
 const apiUrl = stripTrailingSlash(import.meta.env.VITE_API_URL || "http://localhost:8080");
+const authApiUrl = stripTrailingSlash(import.meta.env.VITE_AUTH_API_URL || "http://localhost:8081");
 
 const storageKeys = {
   session: "coffee.auth.session",
@@ -13,13 +14,13 @@ const guestSession = {
 };
 
 export async function login(email, password) {
-  const credentials = btoa(`${email}:${password}`);
-  const response = await fetch(`${apiUrl}/auth/login`, {
+  const response = await fetch(`${authApiUrl}/auth/login`, {
     method: "POST",
     headers: {
       Accept: "application/json",
-      Authorization: `Basic ${credentials}`,
+      "Content-Type": "application/json",
     },
+    body: JSON.stringify({ email, password }),
   });
 
   if (!response.ok) {

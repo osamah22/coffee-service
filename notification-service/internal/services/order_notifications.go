@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/osamah22/coffee-service/shared/events"
 )
@@ -35,6 +36,15 @@ func (svc *OrderNotificationService) SendOrderStatusUpdated(ctx context.Context,
 		To:      recipient,
 		Subject: fmt.Sprintf("Coffee order %s is %s", shortID(event.OrderID), event.Status),
 		Text:    statusBody(event),
+	})
+}
+
+func (svc *OrderNotificationService) SendPasswordResetRequested(ctx context.Context, event events.PasswordResetRequested) error {
+	recipient := svc.recipient(event.Email)
+	return svc.sender.Send(ctx, Email{
+		To:      recipient,
+		Subject: "Coffee Control password reset request received",
+		Text:    passwordResetBody(event),
 	})
 }
 
@@ -73,6 +83,15 @@ func statusBody(event events.OrderStatusUpdated) string {
 		event.OrderID,
 		event.PreviousStatus,
 		event.Status,
+	)
+}
+
+func passwordResetBody(event events.PasswordResetRequested) string {
+	return fmt.Sprintf(
+		"We received a password reset request.\n\nUser: %s\nRole: %s\nRequested at: %s\n",
+		event.Email,
+		event.Role,
+		event.RequestedAt.Format(time.RFC3339),
 	)
 }
 

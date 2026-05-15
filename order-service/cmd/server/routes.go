@@ -9,12 +9,9 @@ import (
 func addRoutes(
 	router *gin.Engine,
 	authMiddleware *sharedauth.Middleware,
-	authHandlers *sharedauth.HandlerSet,
 	productHandler *handlers.ProductHandler,
 	orderHandler *handlers.OrderHandler,
 ) {
-	authHandlers.Register(router, authMiddleware)
-
 	protected := router.Group("/")
 	protected.Use(authMiddleware.AuthenticateOptional())
 

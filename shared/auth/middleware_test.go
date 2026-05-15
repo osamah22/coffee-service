@@ -1,8 +1,6 @@
 package auth
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,55 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
-func TestConfigAuthenticateMatchesDefaultUser(t *testing.T) {
-	cfg := ConfigFromEnv()
-
-	user, ok := cfg.Authenticate("customer@example.com", "customer123")
-
-	if !ok {
-		t.Fatal("expected default customer credentials to authenticate")
-	}
-	if user.Role != RoleCustomer {
-		t.Fatalf("expected customer role, got %q", user.Role)
-	}
-}
-
-func TestLoginExchangesBasicAuthForBearerToken(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	cfg := ConfigFromEnv()
-	middleware := NewMiddleware(cfg)
-
-	router := gin.New()
-	NewHandlerSet(cfg).Register(router, middleware)
-
-	request := httptest.NewRequest(http.MethodPost, "/auth/login", nil)
-	request.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("staff@coffee.local:staff123")))
-	response := httptest.NewRecorder()
-
-	router.ServeHTTP(response, request)
-
-	if response.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d: %s", response.Code, response.Body.String())
-	}
-
-	var body struct {
-		AccessToken string `json:"access_token"`
-		User        struct {
-			Email string `json:"email"`
-			Role  string `json:"role"`
-		} `json:"user"`
-	}
-	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
-		t.Fatalf("decode login response: %v", err)
-	}
-	if body.AccessToken == "" {
-		t.Fatal("expected access token")
-	}
-	if body.User.Role != string(RoleStaff) {
-		t.Fatalf("expected staff role, got %q", body.User.Role)
-	}
-}
 
 func TestAuthenticateOptionalRejectsInvalidToken(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -84,7 +33,7 @@ func TestRequireRoleAcceptsIssuedToken(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cfg := ConfigFromEnv()
 	middleware := NewMiddleware(cfg)
-	token, _, err := middleware.IssueToken(User{
+	token, _, err := middleware.IssueToken(Claims{
 		Subject: "admin-1",
 		Email:   "admin@coffee.local",
 		Role:    RoleAdmin,
@@ -95,7 +44,7 @@ func TestRequireRoleAcceptsIssuedToken(t *testing.T) {
 
 	router := gin.New()
 	router.Use(middleware.AuthenticateOptional())
-	router.GET("/staff", middleware.RequireRole(RoleStaff, RoleAdmin), func(c *gin.Context) {
+	router.GET("/staff", middleware.RequireRole(RoleBarista, RoleAdmin), func(c *gin.Context) {
 		c.Status(http.StatusNoContent)
 	})
 
@@ -112,20 +61,29 @@ func TestRequireRoleAcceptsIssuedToken(t *testing.T) {
 
 func TestIssuedTokenExpires(t *testing.T) {
 	cfg := Config{
-		JWTSecret:      "test-secret",
-		JWTIssuer:      "coffee-test",
-		JWTTTL:         time.Minute,
-		DefaultUsers:   defaultUsers(),
-		usersByEmail:   map[string]User{},
-		usersBySubject: map[string]User{},
+		JWTSecret: "test-secret",
+		JWTIssuer: "coffee-test",
+		JWTTTL:    time.Minute,
 	}
-	cfg.indexUsers()
 
-	_, expiresAt, err := NewMiddleware(cfg).IssueToken(cfg.DefaultUsers[0])
+	_, expiresAt, err := NewMiddleware(cfg).IssueToken(Claims{
+		Subject: "user-1",
+		Email:   "user@example.test",
+		Role:    RoleUser,
+	})
 	if err != nil {
 		t.Fatalf("issue token: %v", err)
 	}
 	if time.Until(expiresAt) <= 0 {
 		t.Fatal("expected future expiration time")
+	}
+}
+
+func TestParseRoleMapsLegacyAliases(t *testing.T) {
+	if got := ParseRole("customer"); got != RoleUser {
+		t.Fatalf("expected customer alias to map to user, got %q", got)
+	}
+	if got := ParseRole("staff"); got != RoleBarista {
+		t.Fatalf("expected staff alias to map to barista, got %q", got)
 	}
 }

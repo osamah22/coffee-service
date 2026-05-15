@@ -45,7 +45,7 @@ function Console() {
           throw new Error(response.status === 401 ? "LOGIN REQUIRED" : "Menu request failed");
         }
         setProducts(await response.json());
-        setStatus(user?.role === "customer" || user?.role === "admin" ? "MENU ONLINE" : "STAFF MENU ONLINE");
+        setStatus(user?.role === "user" || user?.role === "admin" ? "MENU ONLINE" : "STAFF MENU ONLINE");
       })
       .catch((error) => setStatus(error.message === "LOGIN REQUIRED" ? "LOGIN REQUIRED" : "MENU REQUEST FAILED"));
   }, [session.token, user?.role]);
@@ -72,7 +72,7 @@ function Console() {
   const adminStats = useMemo(() => summarizeOrders(adminOrders), [adminOrders]);
   const isAuthenticated = Boolean(session.token);
   const isAdmin = user?.role === "admin";
-  const isStaff = user?.role === "staff";
+  const isStaff = user?.role === "barista";
   const canManageOrders = isAdmin || isStaff;
   const canOrder = isAuthenticated && !isStaff;
 
@@ -111,7 +111,7 @@ function Console() {
       setUser(nextSession.user);
       setCustomerEmail(nextSession.user.email || customerEmail);
       setAuthForm({ email: nextSession.user.email || nextEmail, password: nextPassword });
-      setView(nextSession.user.role === "staff" ? "admin" : "menu");
+      setView(nextSession.user.role === "barista" ? "admin" : "menu");
       setStatus(`${nextSession.user.role.toUpperCase()} LOGIN OK`);
     } catch (error) {
       setAuthError(error.message || "Login failed");
@@ -348,7 +348,7 @@ function Console() {
               total={cartTotal}
               message={orderMessage}
               customerEmail={customerEmail}
-              emailLocked={user.role === "customer"}
+              emailLocked={user.role === "user"}
               onEmailChange={updateCustomerEmail}
               onQuantityChange={setCartQuantity}
               onCheckout={placeOrder}
@@ -416,8 +416,8 @@ function Metric({ label, value }) {
 
 function AuthPanel({ authError, isAuthenticated, authForm, onChange, onLogin, onLogout, user }) {
   const demoAccounts = [
-    { label: "Customer", email: "customer@example.com", password: "customer123" },
-    { label: "Staff", email: "staff@coffee.local", password: "staff123" },
+    { label: "User", email: "customer@example.com", password: "customer123" },
+    { label: "Barista", email: "barista@coffee.local", password: "barista123" },
     { label: "Admin", email: "admin@coffee.local", password: "admin123" },
   ];
 

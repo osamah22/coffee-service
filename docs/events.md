@@ -1,29 +1,23 @@
 # Event Contracts
 
-Order events are facts emitted by the order-service through the transactional outbox. They are intentionally minimal and stable.
+Events are facts emitted through transactional outboxes. They are intentionally minimal and stable.
 
 ## Transport
 
-![Event transport Excalidraw diagram](diagrams/event-transport.svg)
+| Exchange | Routing keys | Publisher | Consumer |
+| --- | --- | --- | --- |
+| `coffee.orders` | `order.created`, `order.status_updated` | `order-service` | `notification-service` |
+| `coffee.auth` | `password_reset.requested` | `auth-service` | `notification-service` |
 
-[Edit Excalidraw source](diagrams/event-transport.excalidraw)
-
-| Setting | Value |
-| --- | --- |
-| Exchange | `coffee.orders` |
-| Exchange type | Topic |
-| Queue | `notification-service.orders` |
-| Routing keys | `order.created`, `order.status_updated` |
-| Publisher | order-service outbox dispatcher |
-| Consumer | notification-service |
+Both exchanges are durable topic exchanges. Notification-service binds one durable queue to the keys it cares about.
 
 ## Rules
 
 - Events describe completed facts, not commands.
-- Event payloads should remain backward compatible.
-- Consumers must be idempotent by `event_id` where possible.
+- Event payloads should stay backward compatible.
+- Consumers should dedupe by `event_id` where possible.
 - Only add an event when another service needs that fact.
-- Notification service must not write to order-service data.
+- Notification-service must not write to auth-service or order-service tables.
 
 ## `order.created`
 
@@ -89,3 +83,25 @@ Published after a valid order status transition is committed.
 [Edit Excalidraw source](diagrams/outbox-lifecycle.excalidraw)
 
 The dispatcher can safely retry unpublished rows. Consumers should still handle duplicate delivery because RabbitMQ delivery is at-least-once.
+
+## `password_reset.requested`
+
+Published after `auth-service` accepts a password reset request for a known user.
+
+```json
+{
+  "event_id": "7f49e19b-b1af-48e0-b9a4-8af10ca0d1d2",
+  "user_id": "6f1ac76e-f1d3-45f0-a4da-f123456789ab",
+  "email": "customer@example.com",
+  "role": "user",
+  "requested_at": "2026-05-15T12:05:00Z"
+}
+```
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `event_id` | string UUID | Idempotency key. |
+| `user_id` | string UUID | Aggregate identifier. |
+| `email` | string | Notification destination. |
+| `role` | string | Current role snapshot. |
+| `requested_at` | timestamp | UTC request time. |

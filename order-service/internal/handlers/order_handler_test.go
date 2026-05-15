@@ -22,7 +22,7 @@ func TestCreateOrderUsesServerProductData(t *testing.T) {
 	router, db := newOrderHandlerTestRouter(t, sharedauth.Claims{
 		Subject: "user-1",
 		Email:   "customer@example.test",
-		Role:    sharedauth.RoleCustomer,
+		Role:    sharedauth.RoleUser,
 	})
 	product := createTestProduct(t, db, "Latte", 4250)
 
@@ -68,7 +68,7 @@ func TestListMineUsesAuthenticatedEmailOverQuery(t *testing.T) {
 	router, db := newOrderHandlerTestRouter(t, sharedauth.Claims{
 		Subject: "alice",
 		Email:   "alice@example.test",
-		Role:    sharedauth.RoleCustomer,
+		Role:    sharedauth.RoleUser,
 	})
 	orderSvc := services.NewOrderService(db)
 	createTestOrder(t, orderSvc, "alice@example.test")
@@ -95,7 +95,7 @@ func TestStaffCanAdvanceOrderStatus(t *testing.T) {
 	router, db := newOrderHandlerTestRouter(t, sharedauth.Claims{
 		Subject: "staff",
 		Email:   "staff@example.test",
-		Role:    sharedauth.RoleStaff,
+		Role:    sharedauth.RoleBarista,
 	})
 	order := createTestOrder(t, services.NewOrderService(db), "customer@example.test")
 
@@ -116,7 +116,7 @@ func TestUserCannotListStaffOrderQueue(t *testing.T) {
 	router, _ := newOrderHandlerTestRouter(t, sharedauth.Claims{
 		Subject: "user-1",
 		Email:   "customer@example.test",
-		Role:    sharedauth.RoleCustomer,
+		Role:    sharedauth.RoleUser,
 	})
 
 	response := performJSON(t, router, http.MethodGet, "/staff/orders", nil)

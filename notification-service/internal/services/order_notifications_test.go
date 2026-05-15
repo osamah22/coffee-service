@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/osamah22/coffee-service/shared/events"
 )
@@ -117,5 +118,29 @@ func TestOrderNotificationServiceReturnsSenderError(t *testing.T) {
 
 	if !errors.Is(err, expected) {
 		t.Fatalf("expected sender error, got %v", err)
+	}
+}
+
+func TestSendPasswordResetRequestedBuildsEmail(t *testing.T) {
+	sender := &recordingSender{}
+	svc := NewOrderNotificationService(sender, "fallback@example.test")
+
+	err := svc.SendPasswordResetRequested(context.Background(), events.PasswordResetRequested{
+		Email:       "user@example.test",
+		Role:        "user",
+		RequestedAt: time.Date(2026, time.May, 15, 12, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	email := sender.emails[0]
+	if email.Subject != "Coffee Control password reset request received" {
+		t.Fatalf("unexpected subject: %q", email.Subject)
+	}
+	for _, part := range []string{"User: user@example.test", "Role: user", "Requested at: 2026-05-15T12:00:00Z"} {
+		if !strings.Contains(email.Text, part) {
+			t.Fatalf("expected body to contain %q, got:\n%s", part, email.Text)
+		}
 	}
 }

@@ -189,6 +189,38 @@ func TestHandleUnknownEventAcksAndIgnores(t *testing.T) {
 	}
 }
 
+func TestHandlePasswordResetRequestedSendsEmailAndAcks(t *testing.T) {
+	sender := &fakeSender{}
+	consumer := NewOrderConsumer(
+		"amqp://example/",
+		notificationservices.NewOrderNotificationService(sender, "fallback@example.test"),
+	)
+	acker := &fakeAcknowledger{}
+	body := mustJSON(t, events.PasswordResetRequested{
+		EventID: "event-3",
+		UserID:  "user-1",
+		Email:   "user@example.test",
+		Role:    "user",
+	})
+
+	consumer.handle(context.Background(), amqp.Delivery{
+		Acknowledger: acker,
+		DeliveryTag:  11,
+		Type:         events.PasswordResetRequestedType,
+		Body:         body,
+	})
+
+	if len(acker.acks) != 1 || acker.acks[0] != 11 {
+		t.Fatalf("expected ack for tag 11, got %#v", acker.acks)
+	}
+	if len(sender.emails) != 1 {
+		t.Fatalf("expected one email, got %d", len(sender.emails))
+	}
+	if sender.emails[0].To != "user@example.test" {
+		t.Fatalf("expected password reset email recipient, got %q", sender.emails[0].To)
+	}
+}
+
 func TestFirstNonEmpty(t *testing.T) {
 	if got := firstNonEmpty("", "a", "b"); got != "a" {
 		t.Fatalf("expected first non-empty value, got %q", got)

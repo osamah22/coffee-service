@@ -24,14 +24,14 @@ func NewOrderHandler(orderSvc *services.OrderService, productSvc *services.Produ
 
 func (h *OrderHandler) Register(router gin.IRouter, authMiddleware *sharedauth.Middleware) {
 	orders := router.Group("/orders")
-	orders.GET("/mine", authMiddleware.RequireRole(sharedauth.RoleCustomer, sharedauth.RoleAdmin), h.listMine)
-	orders.POST("", authMiddleware.RequireRole(sharedauth.RoleCustomer, sharedauth.RoleAdmin), h.create)
+	orders.GET("/mine", authMiddleware.RequireRole(sharedauth.RoleUser, sharedauth.RoleAdmin), h.listMine)
+	orders.POST("", authMiddleware.RequireRole(sharedauth.RoleUser, sharedauth.RoleAdmin), h.create)
 
 	staffOrders := router.Group("/staff/orders")
-	staffOrders.GET("", authMiddleware.RequireRole(sharedauth.RoleStaff, sharedauth.RoleAdmin), h.list)
-	staffOrders.POST("/:id/ready", authMiddleware.RequireRole(sharedauth.RoleStaff, sharedauth.RoleAdmin), h.ready)
-	staffOrders.POST("/:id/complete", authMiddleware.RequireRole(sharedauth.RoleStaff, sharedauth.RoleAdmin), h.complete)
-	staffOrders.POST("/:id/cancel", authMiddleware.RequireRole(sharedauth.RoleStaff, sharedauth.RoleAdmin), h.cancel)
+	staffOrders.GET("", authMiddleware.RequireRole(sharedauth.RoleBarista, sharedauth.RoleAdmin), h.list)
+	staffOrders.POST("/:id/ready", authMiddleware.RequireRole(sharedauth.RoleBarista, sharedauth.RoleAdmin), h.ready)
+	staffOrders.POST("/:id/complete", authMiddleware.RequireRole(sharedauth.RoleBarista, sharedauth.RoleAdmin), h.complete)
+	staffOrders.POST("/:id/cancel", authMiddleware.RequireRole(sharedauth.RoleBarista, sharedauth.RoleAdmin), h.cancel)
 }
 
 func (h *OrderHandler) list(c *gin.Context) {

@@ -6,9 +6,9 @@ React/Vite frontend for the simplified Coffee Service demo.
 
 - Retro/pixel-styled menu UI.
 - Product browsing and cart checkout.
-- Basic-auth login that stores a JWT bearer session.
+- Email/password login against `auth-service` that stores a JWT bearer session.
 - Customer order history.
-- Staff queue with order status actions.
+- Barista queue with order status actions.
 - Theme toggle and local customer email persistence.
 
 ## Local Development
@@ -31,10 +31,10 @@ Build for production:
 npm run build
 ```
 
-The API base URL is controlled by `VITE_API_URL`; Docker Compose builds the frontend with `http://localhost:8080`.
+The API base URLs are controlled by `VITE_API_URL` and `VITE_AUTH_API_URL`. Docker Compose builds the frontend with `http://localhost:8080` for orders and `http://localhost:8081` for auth.
 
 Default demo accounts:
 
 - `customer@example.com` / `customer123`
-- `staff@coffee.local` / `staff123`
+- `barista@coffee.local` / `barista123`
 - `admin@coffee.local` / `admin123`

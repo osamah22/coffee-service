@@ -54,6 +54,9 @@ func (c *OrderConsumer) consume(ctx context.Context) error {
 	if err := rabbitmq.DeclareTopicExchange(conn.Channel, events.OrderExchange); err != nil {
 		return err
 	}
+	if err := rabbitmq.DeclareTopicExchange(conn.Channel, events.UserExchange); err != nil {
+		return err
+	}
 
 	queue, err := conn.Channel.QueueDeclare(orderQueue, true, false, false, false, nil)
 	if err != nil {
@@ -64,6 +67,9 @@ func (c *OrderConsumer) consume(ctx context.Context) error {
 		if err := conn.Channel.QueueBind(queue.Name, key, events.OrderExchange, false, nil); err != nil {
 			return err
 		}
+	}
+	if err := conn.Channel.QueueBind(queue.Name, events.PasswordResetRequestedType, events.UserExchange, false, nil); err != nil {
+		return err
 	}
 
 	if err := conn.Channel.Qos(10, 0, false); err != nil {
@@ -112,6 +118,12 @@ func (c *OrderConsumer) handle(ctx context.Context, delivery amqp.Delivery) {
 		if err = json.Unmarshal(delivery.Body, &event); err == nil {
 			eventID = firstNonEmpty(eventID, event.EventID)
 			err = c.notifications.SendOrderStatusUpdated(ctx, event)
+		}
+	case events.PasswordResetRequestedType:
+		var event events.PasswordResetRequested
+		if err = json.Unmarshal(delivery.Body, &event); err == nil {
+			eventID = firstNonEmpty(eventID, event.EventID)
+			err = c.notifications.SendPasswordResetRequested(ctx, event)
 		}
 	default:
 		log.Printf("notify: ignored unknown event type %q", delivery.Type)
