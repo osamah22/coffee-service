@@ -19,3 +19,4 @@ PLAN.md
 AGENTS.md
 
 *.excalidraw
+!docs/diagrams/*.excalidraw

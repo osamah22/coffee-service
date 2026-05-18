@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="850" height="280" viewBox="0 0 850 280" role="img">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#1f2937"/>
+    </marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#fffdf7"/>
+  <line x1="200" y1="140" x2="285" y2="140" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="455" y1="140" x2="550" y2="140" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/><rect x="448.025" y="125" width="108.95" height="24" rx="4" fill="#ffffff" opacity="0.92"/><text x="502.5" y="139" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="13" fill="#111827"><tspan x="502.5" dy="0">order.created</tspan></text>
+<line x1="455" y1="160" x2="550" y2="160" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/><rect x="423" y="145" width="159" height="24" rx="4" fill="#ffffff" opacity="0.92"/><text x="502.5" y="159" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="13" fill="#111827"><tspan x="502.5" dy="0">order.status_updated</tspan></text>
+<line x1="635" y1="175" x2="635" y2="200" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="550" y1="235" x2="475" y2="235" stroke="#1f2937" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="40" y="100" width="160" height="80" rx="8" fill="#fef3c7" stroke="#1f2937" stroke-width="2"/><text x="120" y="129.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="120" dy="0">Order service</tspan><tspan x="120" dy="21.599999999999998">outbox</tspan></text>
+<path d="M 285 107 C 285 91, 455 91, 455 107 L 455 173 C 455 189, 285 189, 285 173 Z M 285 107 C 285 123, 455 123, 455 107" fill="#ffedd5" stroke="#1f2937" stroke-width="2"/><text x="370" y="129.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="370" dy="0">coffee.orders</tspan><tspan x="370" dy="21.599999999999998">topic exchange</tspan></text>
+<rect x="550" y="105" width="170" height="70" rx="8" fill="#dbeafe" stroke="#1f2937" stroke-width="2"/><text x="635" y="140" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="15" fill="#111827"><tspan x="635" dy="0">notification-service.orders</tspan></text>
+<rect x="550" y="200" width="170" height="70" rx="8" fill="#dcfce7" stroke="#1f2937" stroke-width="2"/><text x="635" y="224.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="635" dy="0">Notification</tspan><tspan x="635" dy="21.599999999999998">consumer</tspan></text>
+<rect x="315" y="200" width="160" height="70" rx="8" fill="#fee2e2" stroke="#1f2937" stroke-width="2"/><text x="395" y="224.2" text-anchor="middle" dominant-baseline="middle" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="18" fill="#111827"><tspan x="395" dy="0">Receipt /</tspan><tspan x="395" dy="21.599999999999998">status email</tspan></text>
+</svg>

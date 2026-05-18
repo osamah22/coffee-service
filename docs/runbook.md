@@ -10,15 +10,9 @@ docker compose up --build
 
 Expected endpoints:
 
-| Component | URL |
-| --- | --- |
-| Frontend | `http://localhost` |
-| Auth API | `http://localhost:8081` |
-| Order API | `http://localhost:8080` |
-| Auth health | `http://localhost:8081/ping` |
-| Order health | `http://localhost:8080/ping` |
-| RabbitMQ management | `http://localhost:15672` |
-| MailHog | `http://localhost:8025` |
+![Expected endpoints table Excalidraw diagram](diagrams/runbook-expected-endpoints.svg)
+
+[Edit Excalidraw source](diagrams/runbook-expected-endpoints.excalidraw)
 
 ## Smoke Test
 
@@ -61,62 +55,33 @@ The check target runs Go tests, builds the frontend, and validates Docker Compos
 
 Auth service:
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `PORT` | `8081` | HTTP server port. |
-| `AUTH_DB_URL` | local Postgres DSN | Auth database connection. |
-| `RABBITMQ_URL` | `amqp://guest:guest@127.0.0.1:5672/` | RabbitMQ connection for auth outbox dispatch. |
-| `API_DOMAIN` | `http://localhost:8080` | Order API origin allowed by CORS. |
-| `AUTH_API_DOMAIN` | `http://localhost:8081` | Auth API origin allowed by CORS. |
-| `WEBSITE_DOMAIN` | `http://localhost:5173` | Frontend origin allowed by CORS. Compose sets this to `http://localhost`. |
-| `JWT_SECRET` | `coffee-service-local-jwt-secret` | HMAC secret for signed bearer tokens. |
-| `JWT_ISSUER` | `coffee-service` | JWT issuer claim value. |
-| `JWT_TTL_MINUTES` | `480` | Token lifetime in minutes. |
-| `AUTH_DEMO_USERS` | built-in user/barista/admin accounts | Comma-separated `email:password:role` entries. |
+![Auth service environment variables table Excalidraw diagram](diagrams/runbook-auth-env.svg)
+
+[Edit Excalidraw source](diagrams/runbook-auth-env.excalidraw)
 
 Order service:
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `PORT` | `8080` | HTTP server port. |
-| `DB_URL` | local Postgres DSN | Runtime database connection. |
-| `RABBITMQ_URL` | `amqp://guest:guest@127.0.0.1:5672/` | RabbitMQ connection. |
-| `API_DOMAIN` | `http://localhost:8080` | API origin allowed by CORS. |
-| `AUTH_API_DOMAIN` | `http://localhost:8081` | Auth API origin allowed by CORS. |
-| `WEBSITE_DOMAIN` | `http://localhost:5173` | Frontend origin allowed by CORS. Compose sets this to `http://localhost`. |
-| `JWT_SECRET` | `coffee-service-local-jwt-secret` | HMAC secret for signed bearer tokens. |
-| `JWT_ISSUER` | `coffee-service` | JWT issuer claim value. |
-| `JWT_TTL_MINUTES` | `480` | Token lifetime in minutes. |
+![Order service environment variables table Excalidraw diagram](diagrams/runbook-order-env.svg)
+
+[Edit Excalidraw source](diagrams/runbook-order-env.excalidraw)
 
 Notification service:
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `RABBITMQ_URL` | `amqp://guest:guest@127.0.0.1:5672/` | RabbitMQ connection. |
-| `SMTP_HOST` | empty | SMTP server host. If empty, sender logs instead of using SMTP. |
-| `SMTP_PORT` | `1025` | SMTP port. |
-| `SMTP_USERNAME` | empty | Optional SMTP username. |
-| `SMTP_PASSWORD` | empty | Optional SMTP password. |
-| `SMTP_FROM` | `Coffee Service <orders@coffee.local>` | Sender address. |
-| `NOTIFICATION_FALLBACK_EMAIL` | `dev@coffee.local` | Fallback when an event has no customer email. |
+![Notification service environment variables table Excalidraw diagram](diagrams/runbook-notification-env.svg)
+
+[Edit Excalidraw source](diagrams/runbook-notification-env.excalidraw)
 
 Frontend:
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `VITE_API_URL` | `http://localhost:8080` | Order API base URL used by the browser. |
-| `VITE_AUTH_API_URL` | `http://localhost:8081` | Auth API base URL used by the browser. |
+![Frontend environment variables table Excalidraw diagram](diagrams/runbook-frontend-env.svg)
+
+[Edit Excalidraw source](diagrams/runbook-frontend-env.excalidraw)
 
 ## Troubleshooting
 
-| Symptom | Check |
-| --- | --- |
-| Staff queue returns `403` | Log in with the barista or admin demo account, then retry the queue request with the bearer token. |
-| Products return `401` | Log in again so the frontend stores a fresh JWT, or send `Authorization: Bearer <token>`. |
-| Login returns `401` | Confirm you are calling `http://localhost:8081/auth/login` with JSON `email` and `password`. |
-| Orders are created but no email appears | Check RabbitMQ health, notification-service logs, and MailHog at `http://localhost:8025`. |
-| Product list is empty | Check order-service startup logs for migration or seed errors. |
-| `make check` fails at Docker Compose config | Run `docker compose version` and confirm Docker is installed. |
+![Troubleshooting table Excalidraw diagram](diagrams/runbook-troubleshooting.svg)
+
+[Edit Excalidraw source](diagrams/runbook-troubleshooting.excalidraw)
 
 ## Local Data
 

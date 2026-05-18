@@ -382,12 +382,124 @@ function erDiagram() {
   writeScene("data-model", "Data Model", elements, width, height, canvas(svg, width, height));
 }
 
+function tableDiagram(slug, title, columns, rows, options = {}) {
+  const fontSize = options.fontSize ?? 14;
+  const headerFontSize = options.headerFontSize ?? 15;
+  const cellPaddingX = 12;
+  const cellPaddingY = 10;
+  const headerHeight = options.headerHeight ?? 42;
+  const minRowHeight = options.rowHeight ?? 34;
+  const x = options.x ?? 40;
+  const y = options.y ?? 40;
+  const maxColWidth = options.maxColWidth ?? 280;
+  const minColWidth = options.minColWidth ?? 100;
+  const rowColors = options.rowColors ?? [colors.white, "#f9fafb"];
+  const borderColor = "#1f2937";
+  const headerColor = options.headerColor ?? colors.blue;
+
+  const columnWidths = columns.map((column, colIdx) => {
+    const values = [column, ...rows.map((row) => row[colIdx] ?? "")];
+    const maxWidth = Math.max(...values.map((value) => textWidth(value, fontSize)));
+    return Math.max(minColWidth, Math.min(maxColWidth, Math.ceil(maxWidth + cellPaddingX * 2)));
+  });
+
+  const rowHeights = rows.map((row) => {
+    const tallestCell = Math.max(...row.map((value) => textHeight(value, fontSize)));
+    return Math.max(minRowHeight, Math.ceil(tallestCell + cellPaddingY * 2));
+  });
+
+  const tableWidth = columnWidths.reduce((sum, width) => sum + width, 0);
+  const tableHeight = headerHeight + rowHeights.reduce((sum, height) => sum + height, 0);
+  const width = tableWidth + x * 2;
+  const height = tableHeight + y * 2;
+  const elements = [];
+  let svg = "";
+
+  elements.push(baseElement("rectangle", x, y, tableWidth, tableHeight, {
+    backgroundColor: colors.white,
+    fillStyle: "solid",
+  }));
+  svg += `<rect x="${x}" y="${y}" width="${tableWidth}" height="${tableHeight}" rx="8" fill="${colors.white}" stroke="${borderColor}" stroke-width="2"/>`;
+  svg += `<rect x="${x}" y="${y}" width="${tableWidth}" height="${headerHeight}" rx="8" fill="${headerColor}" stroke="${borderColor}" stroke-width="2"/>`;
+
+  let cursorX = x;
+  columns.forEach((column, idx) => {
+    const colWidth = columnWidths[idx];
+    if (idx > 0) {
+      elements.push(baseElement("line", cursorX, y, 0, tableHeight, {
+        points: [[0, 0], [0, tableHeight]],
+        lastCommittedPoint: null,
+      }));
+      svg += `<line x1="${cursorX}" y1="${y}" x2="${cursorX}" y2="${y + tableHeight}" stroke="${borderColor}" stroke-width="2"/>`;
+    }
+    elements.push(textElement(column, cursorX + cellPaddingX, y + 10, colWidth - cellPaddingX * 2, {
+      fontSize: headerFontSize,
+      align: "left",
+      height: headerHeight - 16,
+    }));
+    svg += `<text x="${cursorX + cellPaddingX}" y="${y + 26}" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="${headerFontSize}" fill="#111827">${esc(column)}</text>`;
+    cursorX += colWidth;
+  });
+
+  let cursorY = y + headerHeight;
+  svg += `<line x1="${x}" y1="${cursorY}" x2="${x + tableWidth}" y2="${cursorY}" stroke="${borderColor}" stroke-width="2"/>`;
+  rows.forEach((row, rowIdx) => {
+    const rowHeight = rowHeights[rowIdx];
+    const fill = rowColors[rowIdx % rowColors.length];
+    svg += `<rect x="${x}" y="${cursorY}" width="${tableWidth}" height="${rowHeight}" fill="${fill}" opacity="0.9"/>`;
+    let cellX = x;
+    row.forEach((value, colIdx) => {
+      const colWidth = columnWidths[colIdx];
+      elements.push(textElement(String(value), cellX + cellPaddingX, cursorY + cellPaddingY, colWidth - cellPaddingX * 2, {
+        fontSize,
+        align: "left",
+        height: rowHeight - cellPaddingY * 2,
+      }));
+      const linesForCell = lines(String(value));
+      linesForCell.forEach((line, lineIdx) => {
+        svg += `<text x="${cellX + cellPaddingX}" y="${cursorY + 22 + lineIdx * (fontSize * 1.2)}" font-family="Virgil, Segoe Print, Comic Sans MS, sans-serif" font-size="${fontSize}" fill="#111827">${esc(line)}</text>`;
+      });
+      cellX += colWidth;
+    });
+    cursorY += rowHeight;
+    if (rowIdx < rows.length - 1) {
+      svg += `<line x1="${x}" y1="${cursorY}" x2="${x + tableWidth}" y2="${cursorY}" stroke="${borderColor}" stroke-width="1.5"/>`;
+    }
+  });
+
+  writeScene(slug, title, elements, width, height, canvas(svg, width, height));
+}
+
 function embed(slug, alt) {
   return `![${alt}](diagrams/${slug}.svg)\n\n[Edit Excalidraw source](diagrams/${slug}.excalidraw)`;
 }
 
 function replaceNextMermaid(content, replacement) {
   return content.replace(/```mermaid\n[\s\S]*?\n```/, replacement);
+}
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function replaceTableBetween(content, startMarker, endMarker, replacement) {
+  const marker = startMarker;
+  const markerIndex = content.indexOf(marker);
+  if (markerIndex === -1) {
+    return content;
+  }
+
+  const searchStart = markerIndex + marker.length;
+  const searchEnd = endMarker ? content.indexOf(endMarker, searchStart) : -1;
+  const afterMarker = searchEnd === -1 ? content.slice(searchStart) : content.slice(searchStart, searchEnd);
+  const tableMatch = afterMarker.match(/\n\n(\|[^\n]*\|\n\|[- :|]+\|\n(?:\|[^\n]*\|\n)+)/);
+  if (!tableMatch || tableMatch.index == null) {
+    return content;
+  }
+
+  const tableStart = searchStart + tableMatch.index + 2;
+  const tableEnd = tableStart + tableMatch[1].length;
+  return `${content.slice(0, tableStart)}${replacement}\n${content.slice(tableEnd)}`;
 }
 
 function updateDocs() {
@@ -399,15 +511,31 @@ function updateDocs() {
       );
       content = replaceNextMermaid(content, embed("architecture-checkout-sequence", "Checkout sequence Excalidraw diagram"));
       content = replaceNextMermaid(content, embed("architecture-order-state-machine", "Order state machine Excalidraw diagram"));
+      content = replaceTableBetween(content, "## Runtime Containers", "## Service Boundaries", embed("architecture-runtime-containers", "Runtime containers table Excalidraw diagram"));
       return content;
     },
     "events.md": (content) => {
       content = replaceNextMermaid(content, embed("event-transport", "Event transport Excalidraw diagram"));
       content = replaceNextMermaid(content, embed("outbox-lifecycle", "Outbox lifecycle Excalidraw diagram"));
+      content = replaceTableBetween(content, "## Transport", "## Rules", embed("events-transport-table", "Event transport table Excalidraw diagram"));
+      content = replaceTableBetween(content, "## `order.created`", "## `order.status_updated`", embed("events-order-created-fields", "order.created fields table Excalidraw diagram"));
+      content = replaceTableBetween(content, "## `order.status_updated`", "## Outbox Lifecycle", embed("events-order-status-updated-fields", "order.status_updated fields table Excalidraw diagram"));
+      content = replaceTableBetween(content, "## `password_reset.requested`", "", embed("events-password-reset-fields", "password_reset.requested fields table Excalidraw diagram"));
       return content;
     },
-    "api.md": (content) => replaceNextMermaid(content, embed("api-status-transitions", "Order status transitions Excalidraw diagram")),
+    "api.md": (content) => {
+      content = replaceTableBetween(content, "Authenticated application routes use:", "Default local demo accounts:", embed("api-auth-header", "Authentication header table Excalidraw diagram"));
+      content = replaceTableBetween(content, "Default local demo accounts:", "## Auth Endpoints", embed("api-demo-accounts", "Demo accounts table Excalidraw diagram"));
+      content = replaceTableBetween(content, "## Auth Endpoints", "Login response:", embed("api-auth-endpoints", "Auth endpoints table Excalidraw diagram"));
+      content = replaceTableBetween(content, "## Order Endpoints", "## Products", embed("api-order-endpoints", "Order endpoints table Excalidraw diagram"));
+      content = replaceNextMermaid(content, embed("api-status-transitions", "Order status transitions Excalidraw diagram"));
+      content = replaceTableBetween(content, "Common status codes:", "", embed("api-errors", "Common API errors table Excalidraw diagram"));
+      return content;
+    },
     "credentials-and-diagrams.md": (content) => {
+      content = replaceTableBetween(content, "The frontend signs in through `auth-service` with email/password and then stores a bearer JWT.", "Login request:", embed("credentials-demo-auth", "Demo auth credentials table Excalidraw diagram"));
+      content = replaceTableBetween(content, "## Local Infrastructure Credentials", "## Quick Defense Answers", embed("credentials-local-infra", "Local infrastructure credentials table Excalidraw diagram"));
+      content = replaceTableBetween(content, "## Quick Defense Answers", "## Database Snapshot", embed("credentials-defense-answers", "Quick defense answers table Excalidraw diagram"));
       [
         ["runtime-system", "Runtime system Excalidraw diagram"],
         ["service-ownership", "Service ownership Excalidraw diagram"],
@@ -425,6 +553,15 @@ function updateDocs() {
       ].forEach(([slug, alt]) => {
         content = replaceNextMermaid(content, embed(slug, alt));
       });
+      return content;
+    },
+    "runbook.md": (content) => {
+      content = replaceTableBetween(content, "Expected endpoints:", "## Smoke Test", embed("runbook-expected-endpoints", "Expected endpoints table Excalidraw diagram"));
+      content = replaceTableBetween(content, "Auth service:", "Order service:", embed("runbook-auth-env", "Auth service environment variables table Excalidraw diagram"));
+      content = replaceTableBetween(content, "Order service:", "Notification service:", embed("runbook-order-env", "Order service environment variables table Excalidraw diagram"));
+      content = replaceTableBetween(content, "Notification service:", "Frontend:", embed("runbook-notification-env", "Notification service environment variables table Excalidraw diagram"));
+      content = replaceTableBetween(content, "Frontend:", "## Troubleshooting", embed("runbook-frontend-env", "Frontend environment variables table Excalidraw diagram"));
+      content = replaceTableBetween(content, "## Troubleshooting", "## Local Data", embed("runbook-troubleshooting", "Troubleshooting table Excalidraw diagram"));
       return content;
     },
   };
@@ -792,6 +929,252 @@ flow(
 
 stateMachine("order-state-machine", "Order State Machine", 900, 390, orderStates, orderEdges);
 erDiagram();
+tableDiagram(
+  "architecture-runtime-containers",
+  "Runtime Containers",
+  ["Container", "Purpose"],
+  [
+    ["frontend", "Serves the Vite-built React console through Nginx."],
+    ["auth-service", "Owns users, password hashes, JWT issuance, role identity, and auth outbox events."],
+    ["order-service", "Owns products, orders, checkout, status workflow, and order outbox events."],
+    ["notification-service", "Consumes order/auth facts and sends emails. It does not write to another service database."],
+    ["postgres", "Shared PostgreSQL instance with service-owned tables."],
+    ["rabbitmq", "Topic exchange transport for service facts."],
+    ["mailhog", "Local SMTP sink and email inspection UI."],
+  ],
+);
+tableDiagram(
+  "api-auth-header",
+  "Authentication Header",
+  ["Header", "Values", "Purpose"],
+  [["Authorization", "Bearer <jwt>", "Carries the signed session token issued by auth-service."]],
+  { maxColWidth: 300 },
+);
+tableDiagram(
+  "api-demo-accounts",
+  "Demo Accounts",
+  ["Email", "Password", "Role"],
+  [
+    ["customer@example.com", "customer123", "user"],
+    ["barista@coffee.local", "barista123", "barista"],
+    ["admin@coffee.local", "admin123", "admin"],
+  ],
+);
+tableDiagram(
+  "api-auth-endpoints",
+  "Auth Endpoints",
+  ["Method", "Path", "Role", "Description"],
+  [
+    ["GET", "/ping", "public", "Auth health check."],
+    ["POST", "/auth/login", "public", "Exchanges email/password for a JWT."],
+    ["GET", "/auth/me", "authenticated", "Returns the current token subject, email, and role."],
+    ["POST", "/auth/password-reset-requests", "public", "Enqueues password_reset.requested if the email exists. Always returns 202."],
+  ],
+  { maxColWidth: 340 },
+);
+tableDiagram(
+  "api-order-endpoints",
+  "Order Endpoints",
+  ["Method", "Path", "Role", "Description"],
+  [
+    ["GET", "/ping", "public", "Order health check."],
+    ["GET", "/products", "user, barista, admin", "Lists all menu products."],
+    ["POST", "/orders", "user, admin", "Creates an order and enqueues order.created."],
+    ["GET", "/orders/mine", "user, admin", "Lists orders for the JWT email. Query email is only a local fallback."],
+    ["GET", "/staff/orders", "barista, admin", "Lists all orders for the staff queue."],
+    ["POST", "/staff/orders/:id/ready", "barista, admin", "Moves preparing to ready and enqueues order.status_updated."],
+    ["POST", "/staff/orders/:id/complete", "barista, admin", "Moves ready to completed and enqueues order.status_updated."],
+    ["POST", "/staff/orders/:id/cancel", "barista, admin", "Cancels preparing or ready and enqueues order.status_updated."],
+  ],
+  { maxColWidth: 330 },
+);
+tableDiagram(
+  "api-errors",
+  "Common API Errors",
+  ["Status", "Meaning"],
+  [
+    ["400", "Invalid request, validation error, missing customer email, invalid transition, or unknown product."],
+    ["401", "Missing or invalid email-password login result or missing or invalid JWT."],
+    ["403", "Authenticated role is not allowed."],
+    ["404", "Resource not found."],
+    ["500", "Unexpected service or database failure."],
+  ],
+);
+tableDiagram(
+  "events-transport-table",
+  "Event Transport",
+  ["Exchange", "Routing keys", "Publisher", "Consumer"],
+  [
+    ["coffee.orders", "order.created\norder.status_updated", "order-service", "notification-service"],
+    ["coffee.auth", "password_reset.requested", "auth-service", "notification-service"],
+  ],
+  { maxColWidth: 250 },
+);
+tableDiagram(
+  "events-order-created-fields",
+  "order.created Fields",
+  ["Field", "Type", "Notes"],
+  [
+    ["event_id", "string UUID", "Idempotency key."],
+    ["order_id", "string UUID", "Aggregate identifier."],
+    ["customer_email", "string", "Receipt destination."],
+    ["status", "string", "Initial order status."],
+    ["items", "array", "Product snapshot at checkout time."],
+    ["total", "integer", "Total in kurus."],
+    ["occurred_at", "timestamp", "UTC event time."],
+  ],
+);
+tableDiagram(
+  "events-order-status-updated-fields",
+  "order.status_updated Fields",
+  ["Field", "Type", "Notes"],
+  [
+    ["event_id", "string UUID", "Idempotency key."],
+    ["order_id", "string UUID", "Aggregate identifier."],
+    ["customer_email", "string", "Notification destination."],
+    ["previous_status", "string", "Status before transition."],
+    ["status", "string", "New status."],
+    ["occurred_at", "timestamp", "UTC event time."],
+  ],
+);
+tableDiagram(
+  "events-password-reset-fields",
+  "password_reset.requested Fields",
+  ["Field", "Type", "Notes"],
+  [
+    ["event_id", "string UUID", "Idempotency key."],
+    ["user_id", "string UUID", "Aggregate identifier."],
+    ["email", "string", "Notification destination."],
+    ["role", "string", "Current role snapshot."],
+    ["requested_at", "timestamp", "UTC request time."],
+  ],
+);
+tableDiagram(
+  "credentials-demo-auth",
+  "Demo Auth",
+  ["Role", "Email", "Password"],
+  [
+    ["User", "customer@example.com", "customer123"],
+    ["Barista", "barista@coffee.local", "barista123"],
+    ["Admin", "admin@coffee.local", "admin123"],
+  ],
+);
+tableDiagram(
+  "credentials-local-infra",
+  "Local Infrastructure Credentials",
+  ["Component", "URL or DSN", "Username", "Password", "Notes"],
+  [
+    ["Frontend", "http://localhost", "None", "None", "React console served by Nginx through Traefik."],
+    ["Traefik gateway", "http://localhost", "None", "None", "Primary entrypoint for frontend and APIs."],
+    ["Auth API", "http://localhost/auth", "Demo credentials above", "Demo credentials above", "Login and token-backed identity."],
+    ["Order API", "http://localhost/api", "Bearer JWT", "Bearer JWT", "Product and order API."],
+    ["PostgreSQL", "postgres://postgres:postgres@localhost:5432/coffee", "postgres", "postgres", "Shared instance; auth and order own separate tables."],
+    ["RabbitMQ AMQP", "amqp://guest:guest@localhost:5672/", "guest", "guest", "Used by both outbox dispatchers and notification-service."],
+    ["RabbitMQ UI", "http://localhost:15672", "guest", "guest", "Management UI."],
+    ["MailHog UI", "http://localhost:8025", "None", "None", "Local email inspection UI."],
+    ["MailHog SMTP", "localhost:1025", "None", "None", "Notification-service sends here locally."],
+  ],
+  { maxColWidth: 320 },
+);
+tableDiagram(
+  "credentials-defense-answers",
+  "Quick Defense Answers",
+  ["Question", "Answer"],
+  [
+    ["How many services?", "Three application services: auth-service, order-service, notification-service."],
+    ["How many APIs?", "Two HTTP APIs: auth-service and order-service. Notification-service is event-only."],
+    ["Why split auth?", "Email/password auth now has its own user table, JWT boundary, and auth events without mixing that logic into order ownership."],
+    ["Which roles exist?", "user, barista, admin."],
+    ["Why RabbitMQ?", "It decouples order and auth side effects from email delivery and lets notification handling retry independently."],
+  ],
+);
+tableDiagram(
+  "runbook-expected-endpoints",
+  "Expected Endpoints",
+  ["Component", "URL"],
+  [
+    ["Frontend", "http://localhost"],
+    ["Gateway auth route", "http://localhost/auth"],
+    ["Gateway order route", "http://localhost/api"],
+    ["Auth health", "http://localhost:8081/ping"],
+    ["Order health", "http://localhost:8080/ping"],
+    ["RabbitMQ management", "http://localhost:15672"],
+    ["MailHog", "http://localhost:8025"],
+  ],
+);
+tableDiagram(
+  "runbook-auth-env",
+  "Auth Service Environment Variables",
+  ["Variable", "Default", "Purpose"],
+  [
+    ["PORT", "8081", "HTTP server port."],
+    ["AUTH_DB_URL", "local Postgres DSN", "Auth database connection."],
+    ["RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672/", "RabbitMQ connection for auth outbox dispatch."],
+    ["API_DOMAIN", "http://localhost", "Order API origin allowed by CORS."],
+    ["AUTH_API_DOMAIN", "http://localhost", "Auth API origin allowed by CORS."],
+    ["WEBSITE_DOMAIN", "http://localhost", "Frontend origin allowed by CORS."],
+    ["JWT_SECRET", "coffee-service-local-jwt-secret", "HMAC secret for signed bearer tokens."],
+    ["JWT_ISSUER", "coffee-service", "JWT issuer claim value."],
+    ["JWT_TTL_MINUTES", "480", "Token lifetime in minutes."],
+    ["AUTH_DEMO_USERS", "built-in user/barista/admin accounts", "Comma-separated email:password:role entries."],
+  ],
+  { maxColWidth: 320 },
+);
+tableDiagram(
+  "runbook-order-env",
+  "Order Service Environment Variables",
+  ["Variable", "Default", "Purpose"],
+  [
+    ["PORT", "8080", "HTTP server port."],
+    ["DB_URL", "local Postgres DSN", "Runtime database connection."],
+    ["RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672/", "RabbitMQ connection."],
+    ["API_DOMAIN", "http://localhost", "API origin allowed by CORS."],
+    ["AUTH_API_DOMAIN", "http://localhost", "Auth API origin allowed by CORS."],
+    ["WEBSITE_DOMAIN", "http://localhost", "Frontend origin allowed by CORS."],
+    ["JWT_SECRET", "coffee-service-local-jwt-secret", "HMAC secret for signed bearer tokens."],
+    ["JWT_ISSUER", "coffee-service", "JWT issuer claim value."],
+    ["JWT_TTL_MINUTES", "480", "Token lifetime in minutes."],
+  ],
+  { maxColWidth: 320 },
+);
+tableDiagram(
+  "runbook-notification-env",
+  "Notification Service Environment Variables",
+  ["Variable", "Default", "Purpose"],
+  [
+    ["RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672/", "RabbitMQ connection."],
+    ["SMTP_HOST", "mailhog", "SMTP server host. Empty means log-only sender."],
+    ["SMTP_PORT", "1025", "SMTP port."],
+    ["SMTP_USERNAME", "empty", "Optional SMTP username."],
+    ["SMTP_PASSWORD", "empty", "Optional SMTP password."],
+    ["SMTP_FROM", "Coffee Service <orders@coffee.local>", "Sender address."],
+    ["NOTIFICATION_FALLBACK_EMAIL", "dev@coffee.local", "Fallback when an event has no customer email."],
+  ],
+  { maxColWidth: 320 },
+);
+tableDiagram(
+  "runbook-frontend-env",
+  "Frontend Environment Variables",
+  ["Variable", "Default", "Purpose"],
+  [
+    ["VITE_API_URL", "http://localhost/api", "Order API base URL used by the browser."],
+    ["VITE_AUTH_API_URL", "http://localhost", "Auth API base URL used by the browser."],
+  ],
+);
+tableDiagram(
+  "runbook-troubleshooting",
+  "Troubleshooting",
+  ["Symptom", "Check"],
+  [
+    ["Staff queue returns 403", "Log in with the barista or admin demo account, then retry the queue request with the bearer token."],
+    ["Products return 401", "Log in again so the frontend stores a fresh JWT, or send Authorization: Bearer <token>."],
+    ["Login returns 401", "Confirm you are calling http://localhost/auth/login with JSON email and password."],
+    ["Orders are created but no email appears", "Check RabbitMQ health, notification-service logs, and MailHog at http://localhost:8025."],
+    ["Product list is empty", "Check order-service startup logs for migration or seed errors."],
+    ["make check fails at Docker Compose config", "Run docker compose version and confirm Docker is installed."],
+  ],
+  { maxColWidth: 360 },
+);
 
 flow(
   "future-target-shape",

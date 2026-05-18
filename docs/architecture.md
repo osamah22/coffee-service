@@ -16,15 +16,9 @@ Coffee Service is a compact service-oriented demo with a frontend, two HTTP APIs
 
 ## Runtime Containers
 
-| Container | Purpose |
-| --- | --- |
-| `frontend` | Serves the Vite-built React console through Nginx. |
-| `auth-service` | Owns users, password hashes, JWT issuance, role identity, and auth outbox events. |
-| `order-service` | Owns products, orders, checkout, status workflow, and order outbox events. |
-| `notification-service` | Consumes order/auth facts and sends emails. It does not write to another service database. |
-| `postgres` | Shared PostgreSQL instance with service-owned tables. |
-| `rabbitmq` | Topic exchange transport for service facts. |
-| `mailhog` | Local SMTP sink and email inspection UI. |
+![Runtime containers table Excalidraw diagram](diagrams/architecture-runtime-containers.svg)
+
+[Edit Excalidraw source](diagrams/architecture-runtime-containers.excalidraw)
 
 ## Service Boundaries
 

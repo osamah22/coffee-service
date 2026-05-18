@@ -2,8 +2,8 @@
 
 Local Compose API bases:
 
-- Auth API: `http://localhost:8081`
-- Order API: `http://localhost:8080`
+- Auth API: `http://localhost/auth`
+- Order API: `http://localhost/api`
 
 ## Authentication
 
@@ -21,26 +21,21 @@ Content-Type: application/json
 
 Authenticated application routes use:
 
-| Header | Values | Purpose |
-| --- | --- | --- |
-| `Authorization` | `Bearer <jwt>` | Carries the signed session token issued by `auth-service`. |
+![Authentication header table Excalidraw diagram](diagrams/api-auth-header.svg)
+
+[Edit Excalidraw source](diagrams/api-auth-header.excalidraw)
 
 Default local demo accounts:
 
-| Email | Password | Role |
-| --- | --- | --- |
-| `customer@example.com` | `customer123` | `user` |
-| `barista@coffee.local` | `barista123` | `barista` |
-| `admin@coffee.local` | `admin123` | `admin` |
+![Demo accounts table Excalidraw diagram](diagrams/api-demo-accounts.svg)
+
+[Edit Excalidraw source](diagrams/api-demo-accounts.excalidraw)
 
 ## Auth Endpoints
 
-| Method | Path | Role | Description |
-| --- | --- | --- | --- |
-| `GET` | `/ping` | public | Auth health check. |
-| `POST` | `/auth/login` | public | Exchanges email/password for a JWT. |
-| `GET` | `/auth/me` | authenticated | Returns the current token subject, email, and role. |
-| `POST` | `/auth/password-reset-requests` | public | Enqueues `password_reset.requested` if the email exists. Always returns `202`. |
+![Auth endpoints table Excalidraw diagram](diagrams/api-auth-endpoints.svg)
+
+[Edit Excalidraw source](diagrams/api-auth-endpoints.excalidraw)
 
 Login response:
 
@@ -67,16 +62,9 @@ Password reset request:
 
 ## Order Endpoints
 
-| Method | Path | Role | Description |
-| --- | --- | --- | --- |
-| `GET` | `/ping` | public | Order health check. |
-| `GET` | `/products` | user, barista, admin | Lists all menu products. |
-| `POST` | `/orders` | user, admin | Creates an order and enqueues `order.created`. |
-| `GET` | `/orders/mine` | user, admin | Lists orders for the JWT email. `?email=` is accepted locally, but authenticated claims win when present. |
-| `GET` | `/staff/orders` | barista, admin | Lists all orders for the staff queue. |
-| `POST` | `/staff/orders/:id/ready` | barista, admin | Moves `preparing` to `ready` and enqueues `order.status_updated`. |
-| `POST` | `/staff/orders/:id/complete` | barista, admin | Moves `ready` to `completed` and enqueues `order.status_updated`. |
-| `POST` | `/staff/orders/:id/cancel` | barista, admin | Cancels `preparing` or `ready` and enqueues `order.status_updated`. |
+![Order endpoints table Excalidraw diagram](diagrams/api-order-endpoints.svg)
+
+[Edit Excalidraw source](diagrams/api-order-endpoints.excalidraw)
 
 ## Products
 
@@ -154,10 +142,6 @@ Most errors return:
 
 Common status codes:
 
-| Status | Meaning |
-| --- | --- |
-| `400` | Invalid request, validation error, missing customer email, invalid transition, or unknown product. |
-| `401` | Missing/invalid email-password login result or missing/invalid JWT. |
-| `403` | Authenticated role is not allowed. |
-| `404` | Resource not found. |
-| `500` | Unexpected service/database failure. |
+![Common API errors table Excalidraw diagram](diagrams/api-errors.svg)
+
+[Edit Excalidraw source](diagrams/api-errors.excalidraw)

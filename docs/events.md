@@ -4,10 +4,9 @@ Events are facts emitted through transactional outboxes. They are intentionally 
 
 ## Transport
 
-| Exchange | Routing keys | Publisher | Consumer |
-| --- | --- | --- | --- |
-| `coffee.orders` | `order.created`, `order.status_updated` | `order-service` | `notification-service` |
-| `coffee.auth` | `password_reset.requested` | `auth-service` | `notification-service` |
+![Event transport table Excalidraw diagram](diagrams/events-transport-table.svg)
+
+[Edit Excalidraw source](diagrams/events-transport-table.excalidraw)
 
 Both exchanges are durable topic exchanges. Notification-service binds one durable queue to the keys it cares about.
 
@@ -46,15 +45,9 @@ Published after a new order and its line items are committed.
 }
 ```
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `event_id` | string UUID | Idempotency key. |
-| `order_id` | string UUID | Aggregate identifier. |
-| `customer_email` | string | Receipt destination. |
-| `status` | string | Initial order status. |
-| `items` | array | Product snapshot at checkout time. |
-| `total` | integer | Total in kurus. |
-| `occurred_at` | timestamp | UTC event time. |
+![order.created fields table Excalidraw diagram](diagrams/events-order-created-fields.svg)
+
+[Edit Excalidraw source](diagrams/events-order-created-fields.excalidraw)
 
 ## `order.status_updated`
 
@@ -71,14 +64,9 @@ Published after a valid order status transition is committed.
 }
 ```
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `event_id` | string UUID | Idempotency key. |
-| `order_id` | string UUID | Aggregate identifier. |
-| `customer_email` | string | Notification destination. |
-| `previous_status` | string | Status before transition. |
-| `status` | string | New status. |
-| `occurred_at` | timestamp | UTC event time. |
+![order.status_updated fields table Excalidraw diagram](diagrams/events-order-status-updated-fields.svg)
+
+[Edit Excalidraw source](diagrams/events-order-status-updated-fields.excalidraw)
 
 ## Outbox Lifecycle
 
@@ -110,10 +98,6 @@ Published after `auth-service` accepts a password reset request for a known user
 }
 ```
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `event_id` | string UUID | Idempotency key. |
-| `user_id` | string UUID | Aggregate identifier. |
-| `email` | string | Notification destination. |
-| `role` | string | Current role snapshot. |
-| `requested_at` | timestamp | UTC request time. |
+![password_reset.requested fields table Excalidraw diagram](diagrams/events-password-reset-fields.svg)
+
+[Edit Excalidraw source](diagrams/events-password-reset-fields.excalidraw)
